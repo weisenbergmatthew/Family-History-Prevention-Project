@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { guard } from "./_guard.js";
 
 // Synthesis is the heavier call; allow up to 60s (Vercel Hobby max).
 export const config = { maxDuration: 60 };
@@ -81,7 +82,7 @@ function sanitize(data) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") { res.status(405).json({ error: "method_not_allowed" }); return; }
+  if (!guard(req, res, { limit: 12, windowMs: 60000 })) return;
 
   const { conditions } = parseBody(req);
   if (!Array.isArray(conditions) || conditions.length === 0) {
@@ -111,7 +112,7 @@ export default async function handler(req, res) {
 
   try {
     const msg = await client.messages.create({
-      model: "claude-opus-4-8",
+      model: "claude-haiku-4-5",
       max_tokens: 4096,
       system: SYSTEM,
       messages: [{ role: "user", content: userMsg }],

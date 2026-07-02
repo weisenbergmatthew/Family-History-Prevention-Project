@@ -46,7 +46,14 @@ the Vercel project settings). If the API is unavailable, the app degrades
 gracefully — condition extraction falls back to a local keyword matcher, and the
 plan shows a retry.
 
-Model: `claude-opus-4-8`.
+Model: `claude-haiku-4-5` (chosen for lowest cost per call).
+
+**Abuse protection** ([`api/_guard.js`](api/_guard.js)): the endpoints only accept
+same-origin requests (blocks other sites and most direct/scripted calls), apply a
+best-effort per-IP rate limit (30/min for extract, 12/min for recommend), and cap
+input sizes. Because the site is public and calls run on your API key, this
+reduces — but does not fully eliminate — the cost of abuse; for stronger limits,
+add a persistent rate-limit store (e.g. Vercel KV) or Vercel's firewall.
 
 ## Design
 

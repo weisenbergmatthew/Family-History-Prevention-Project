@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { guard } from "./_guard.js";
 
 // Cap serverless duration (Claude call). Vercel Hobby allows up to 60s.
 export const config = { maxDuration: 60 };
@@ -44,14 +45,14 @@ function extractJson(text) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") { res.status(405).json({ error: "method_not_allowed" }); return; }
+  if (!guard(req, res, { limit: 30, windowMs: 60000 })) return;
 
   const { text } = parseBody(req);
   if (typeof text !== "string" || !text.trim()) { res.status(200).json({ conditions: [] }); return; }
 
   try {
     const msg = await client.messages.create({
-      model: "claude-opus-4-8",
+      model: "claude-haiku-4-5",
       max_tokens: 1024,
       system: SYSTEM,
       messages: [{ role: "user", content: text.slice(0, 2000) }],
