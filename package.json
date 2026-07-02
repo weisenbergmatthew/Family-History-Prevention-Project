@@ -1,0 +1,10 @@
+{
+  "name": "family-history-prevention-project",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Family health tree with AI condition extraction and guideline-based prevention recommendations",
+  "dependencies": {
+    "@anthropic-ai/sdk": "latest"
+  }
+}

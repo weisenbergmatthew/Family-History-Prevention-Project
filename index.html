@@ -62,6 +62,10 @@
   .stage-scroll{overflow:auto; padding:26px 34px 44px}
   #stage{position:relative; margin:0 auto}
 
+  .spin{width:22px; height:22px; border:2px solid var(--hairline); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; margin:0 auto 14px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion: reduce){ .spin{animation:none} }
+
   @media (prefers-reduced-motion: reduce){
     #drawer,#scrim,.node-shape,.add-marker,.btn-primary,.link-mono{transition:none !important}
   }
@@ -129,17 +133,15 @@
       <input id="f_name" type="text" placeholder="e.g. Grandma Rose" style="width:100%;background:var(--input);border:1px solid var(--hairline);color:var(--ink);border-radius:3px;padding:11px 13px;font-size:14px" />
 
       <div class="mono" style="font-size:9px;letter-spacing:.8px;color:var(--muted);margin:20px 0 8px">HEALTH CONDITIONS</div>
-      <textarea id="f_cond" placeholder="Type freely — e.g. 'heart attack at 58, high blood pressure, type 2 diabetes'. Conditions are recognized automatically." style="width:100%;min-height:110px;background:var(--input);border:1px solid var(--hairline);color:var(--ink);border-radius:3px;padding:11px 13px;font-size:14px;resize:vertical;line-height:1.5"></textarea>
-
-      <div id="dw_quick" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px"></div>
+      <textarea id="f_cond" placeholder="Describe in your own words what they were diagnosed with — e.g. 'had a heart attack at 58, high blood pressure, and was told he had early kidney disease'. Save, and the conditions are identified with AI." style="width:100%;min-height:120px;background:var(--input);border:1px solid var(--hairline);color:var(--ink);border-radius:3px;padding:11px 13px;font-size:14px;resize:vertical;line-height:1.5"></textarea>
 
       <div style="margin-top:20px;padding:14px;border:1px dashed #D9CFBB;border-radius:4px;background:var(--highlight)">
-        <div class="mono" style="font-size:9px;letter-spacing:.8px;color:var(--muted);margin-bottom:8px">RECOGNIZED</div>
+        <div class="mono" style="font-size:9px;letter-spacing:.8px;color:var(--muted);margin-bottom:8px">IDENTIFIED CONDITIONS</div>
         <div id="dw_recognized" style="display:flex;flex-wrap:wrap;gap:5px"></div>
       </div>
 
       <div style="display:flex;gap:10px;margin-top:22px">
-        <span class="mono btn-primary" data-act="save" style="font-size:11.5px;padding:10px 18px;border-radius:2px">Save</span>
+        <span class="mono btn-primary" id="dw_save" data-act="save" style="font-size:11.5px;padding:10px 18px;border-radius:2px">Save</span>
         <span class="mono link-accent" data-act="clear" style="font-size:11.5px;color:var(--muted);padding:10px 14px">Clear</span>
       </div>
     </div>
@@ -193,7 +195,7 @@ function load(){ try{ const r=localStorage.getItem("fht_v2"); if(r){ const v=JSO
 function save(){ try{ localStorage.setItem("fht_v2", JSON.stringify(s)); }catch(e){} }
 
 /* ---------- transient UI state ---------- */
-let selId=null, reportOpen=false, rep=null, openBlocks={};
+let selId=null, reportOpen=false, rep=null;
 const draft={name:"", cond:"", sex:"u"};
 
 /* ---------- parsing / aggregation (unchanged logic) ---------- */
@@ -205,10 +207,25 @@ function detect(text){
   if(["breast_ca","colorectal_ca","prostate_ca","melanoma"].some(c=>found.has(c))) found.delete("cancer_generic");
   return [...found];
 }
+// Conditions for a person: prefer the AI-extracted list; fall back to the
+// local keyword matcher for legacy entries or when the API was unavailable.
+function condObjs(p){
+  if(p && Array.isArray(p.extracted)) return p.extracted.map(e=> typeof e==="string"?{name:e,onsetAge:null}:e).filter(e=>e&&e.name);
+  return detect(p&&p.conditions).map(k=>({name:KB[k].name, onsetAge:null}));
+}
+function hasConds(p){ return condObjs(p).length>0; }
+function shorten(x){ x=String(x); return x.length>22 ? x.slice(0,21)+"…" : x; }
+
+// Aggregate identical conditions across relatives, keyed by canonical name.
 function aggregate(){
   const agg={}; const w=d=>d===1?3:1;
   for(const id in s.people){ if(id==="you") continue; const p=s.people[id];
-    for(const k of detect(p.conditions)){ if(!agg[k]) agg[k]={key:k,score:0,fd:0,people:[]}; agg[k].score+=w(p.degree); if(p.degree===1) agg[k].fd++; agg[k].people.push({role:p.role,name:p.name}); } }
+    const seen=new Set();
+    for(const c of condObjs(p)){ const name=(c.name||"").trim(); const key=name.toLowerCase();
+      if(!name||seen.has(key)) continue; seen.add(key);
+      if(!agg[name]) agg[name]={name,score:0,fd:0,people:[]};
+      agg[name].score+=w(p.degree); if(p.degree===1) agg[name].fd++;
+      agg[name].people.push({role:p.role,name:p.name,degree:p.degree}); } }
   return agg;
 }
 function levelOf(a){ if(a.fd>=2||a.score>=6) return "high"; if(a.fd>=1||a.score>=2) return "mod"; return "low"; }
@@ -241,7 +258,7 @@ function openEditor(id){
   const editable = sexIsEditable(id);
   document.getElementById("dw_sexwrap").style.display = editable ? "block" : "none";
   if(editable) renderSexSeg();
-  renderRecognized(draft.cond);
+  renderIdentified();
   document.getElementById("drawer").classList.add("open");
   document.getElementById("scrim").classList.add("open");
   renderStage();
@@ -251,15 +268,30 @@ function closeEditor(){
   document.getElementById("scrim").classList.remove("open");
   selId=null; renderStage();
 }
-function saveEditor(){
+async function saveEditor(){
   const id=selId; if(!id) return;
   const p=s.people[id];
   p.name=draft.name.trim(); p.conditions=draft.cond.trim();
   if(sexIsEditable(id)) p.sex=draft.sex;
-  save(); closeEditor(); updateMeta();
+
+  if(!p.conditions){ p.extracted=[]; save(); closeEditor(); updateMeta(); renderStage(); return; }
+
+  const btn=document.getElementById("dw_save");
+  if(btn){ btn.textContent="Analyzing…"; btn.style.opacity=".55"; btn.style.pointerEvents="none"; }
+  try{
+    const resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:p.conditions})});
+    if(!resp.ok) throw new Error("HTTP "+resp.status);
+    const data=await resp.json();
+    p.extracted = Array.isArray(data.conditions) ? data.conditions : [];
+  }catch(err){
+    // Graceful fallback: local keyword matcher keeps the app usable offline.
+    p.extracted = detect(p.conditions).map(k=>({name:KB[k].name, onsetAge:null}));
+  }finally{
+    if(btn){ btn.textContent="Save"; btn.style.opacity=""; btn.style.pointerEvents=""; }
+  }
+  save(); closeEditor(); updateMeta(); renderStage();
 }
-function clearPerson(){ draft.cond=""; document.getElementById("f_cond").value=""; renderRecognized(""); }
-function addChip(label){ const cur=draft.cond.trim(); draft.cond = cur ? cur.replace(/\s*$/,"")+", "+label : label; document.getElementById("f_cond").value=draft.cond; renderRecognized(draft.cond); }
+function clearPerson(){ draft.cond=""; document.getElementById("f_cond").value=""; condHint(); }
 
 function renderSexSeg(){
   const opts=[["m","Male"],["f","Female"],["u","Unknown"]];
@@ -267,17 +299,19 @@ function renderSexSeg(){
     `<div class="mono" data-act="sex" data-sex="${o[0]}" style="font-size:10.5px;letter-spacing:.5px;padding:7px 13px;cursor:pointer;transition:.12s;${draft.sex===o[0]?"background:var(--ink);color:var(--paper);":"background:transparent;color:var(--muted);"}">${o[1]}</div>`
   ).join("");
 }
-function renderRecognized(text){
-  const box=document.getElementById("dw_recognized");
-  const found=detect(text).map(k=>KB[k].name);
-  box.innerHTML = found.length
-    ? found.map(n=>`<span style="font-size:11.5px;background:var(--ink);color:var(--paper);padding:3px 9px;border-radius:999px">${esc(n)}</span>`).join("")
-    : `<span style="font-size:12px;color:var(--faint)">Nothing recognized yet.</span>`;
+function condHint(){
+  document.getElementById("dw_recognized").innerHTML =
+    `<span style="font-size:12px;color:var(--faint)">Conditions are identified with AI when you save.</span>`;
 }
-function renderQuickChips(){
-  document.getElementById("dw_quick").innerHTML = QUICK.map(q=>
-    `<span class="quick-chip" data-act="chip" data-label="${esc(q)}" style="font-size:11.5px;background:var(--chip-bg);border:1px solid var(--chip-border);color:var(--chip-ink);padding:4px 10px;border-radius:999px">+ ${esc(q)}</span>`
-  ).join("");
+function renderIdentified(){
+  const box=document.getElementById("dw_recognized");
+  const p = selId ? s.people[selId] : null;
+  const ex = p && Array.isArray(p.extracted) ? p.extracted : [];
+  if(!ex.length){ condHint(); return; }
+  box.innerHTML = ex.map(c=>{
+    const onset = Number.isInteger(c.onsetAge) ? ` · ${c.onsetAge}` : "";
+    return `<span style="font-size:11.5px;background:var(--ink);color:var(--paper);padding:3px 9px;border-radius:999px">${esc(c.name)}${onset}</span>`;
+  }).join("");
 }
 
 /* ---------- layout & connectors ---------- */
@@ -339,7 +373,7 @@ function shapeStyle(p, selected){
   const shadow = selected ? "box-shadow:0 0 0 4px rgba(26,23,18,.12);" : "";
   if(p.id==="you") return base+`border-radius:50%;border:2px solid var(--accent);background:#fff;`+shadow;
   const radius = p.sex==="m" ? "3px" : p.sex==="f" ? "50%" : "10px";
-  const affected = detect(p.conditions).length>0;
+  const affected = hasConds(p);
   const fill = affected ? "background:var(--ink);border:1.5px solid var(--ink);" : "background:#fff;border:1.5px solid var(--ink);";
   return base+`border-radius:${radius};`+fill+shadow;
 }
@@ -358,7 +392,7 @@ function renderStage(){
     const p=s.people[id]; if(!p) return; const P=L.pos[id]; if(!P) return;
     const wrap=`position:absolute;left:${P.cx-G.CW/2}px;top:${P.top}px;width:${G.CW}px;display:flex;flex-direction:column;align-items:center`;
     const isYou = id==="you";
-    const conds=detect(p.conditions).map(k=>KB[k].short);
+    const conds=condObjs(p).map(c=>shorten(c.name));
     const chips=conds.slice(0,2); if(conds.length>2) chips.push("+"+(conds.length-2));
     const removable=/^(sib|pau|mau)_/.test(id);
 
@@ -402,38 +436,37 @@ function renderStage(){
 }
 function updateMeta(){
   let mapped=0,total=0;
-  for(const id in s.people){ if(id==="you") continue; total++; if(detect(s.people[id].conditions).length) mapped++; }
+  for(const id in s.people){ if(id==="you") continue; total++; if(hasConds(s.people[id])) mapped++; }
   document.getElementById("metaMapped").textContent =
     String(mapped).padStart(2,"0")+" / "+String(total).padStart(2,"0")+" MAPPED";
 }
 
 /* ---------- report ---------- */
-function generate(){
+async function generate(){
   const agg=aggregate(); const keys=Object.keys(agg);
-  if(!keys.length){ rep={empty:true}; openBlocks={}; reportOpen=true; renderReport(); return; }
+  if(!keys.length){ rep={empty:true}; reportOpen=true; renderReport(); return; }
   const rank={high:0,mod:1,low:2};
   keys.sort((a,b)=> rank[levelOf(agg[a])]-rank[levelOf(agg[b])] || agg[b].score-agg[a].score);
   const priorities=keys.map(k=>{ const a=agg[k];
     const who=a.people.map(pp=> pp.name ? pp.name+" ("+pp.role.toLowerCase()+")" : pp.role.toLowerCase());
-    return {name:KB[k].name, lvl:levelOf(a), who:a.people.length+" relative"+(a.people.length>1?"s":"")+": "+who.join(", ")}; });
-  const blocks=keys.map(k=>{ const a=agg[k], kb=KB[k];
-    const cats=CATS.filter(c=>kb.rec[c[0]]).map(c=>({label:c[1].toUpperCase(), items:kb.rec[c[0]]}));
-    return {name:kb.name, source:"Guideline basis · "+kb.source, lvl:levelOf(a), cats}; });
-  blocks.push({name:"Everyone: foundational habits", source:"Cross-guideline consensus", lvl:"base", cats:[
-    {label:"DIET",items:["Build meals around vegetables, fruit, whole grains, legumes, nuts, and fish; limit ultra-processed food, added sugar, and excess sodium."]},
-    {label:"EXERCISE",items:["≥150 min/week moderate aerobic activity + 2 days of strength training; reduce prolonged sitting."]},
-    {label:"SLEEP",items:["7–9 hours on a consistent schedule; get snoring or daytime sleepiness evaluated for sleep apnea."]},
-    {label:"SCREENING & CLINICAL",items:["Keep a written family history and share it with your clinician; know your blood pressure, cholesterol, glucose, and BMI."]},
-    {label:"LIFESTYLE",items:["Don't use tobacco, limit alcohol, protect skin from UV, and manage stress."]}]});
-  const sources=[...new Set(keys.map(k=>KB[k].source))].join(" · ");
-  rep={empty:false, priorities, blocks, sources}; openBlocks={0:true}; reportOpen=true;
-  renderReport();
+    return {name:a.name, lvl:levelOf(a),
+      who:a.people.length+" relative"+(a.people.length>1?"s":"")+": "+who.join(", "),
+      relatives:a.people.map(pp=>({role:pp.role, degree:pp.degree}))}; });
+  rep={empty:false, priorities, plan:null, loading:true, error:null};
+  reportOpen=true; renderReport();
+  try{
+    const resp=await fetch("/api/recommend",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({ conditions: priorities.map(p=>({name:p.name, level:p.lvl, relatives:p.relatives})) })});
+    if(!resp.ok) throw new Error("HTTP "+resp.status);
+    const data=await resp.json();
+    if(!data || !data.categories) throw new Error("no plan returned");
+    rep.plan=data; rep.loading=false; renderReport();
+  }catch(err){ rep.loading=false; rep.error=String(err.message||err); renderReport(); }
 }
 function lvlStyle(lvl){
   const mono="font-family:var(--mono);font-size:10px;letter-spacing:.6px;white-space:nowrap;flex:0 0 auto;";
   if(lvl==="high") return mono+"color:var(--accent);font-weight:600;";
   if(lvl==="mod")  return mono+"color:var(--ink);";
-  if(lvl==="base") return mono+"color:var(--muted2);";
   return mono+"color:var(--muted);";
 }
 function renderReport(){
@@ -443,7 +476,7 @@ function renderReport(){
   if(rep.empty){
     body=`<div style="text-align:center;color:var(--muted);padding:50px 20px;font-size:14px">No conditions entered yet.<br/>Add what your relatives had, then generate your plan.</div>`;
   }else{
-    body+=`<div style="background:var(--highlight);border:1px solid #E7D9BE;border-radius:4px;padding:13px 15px;font-size:12.5px;color:#7A6A45;margin:18px 0">Educational tool — not medical advice. Suggestions are based on published prevention guidelines and your entered family history. A strong family history is a reason to talk to a clinician and consider genetic counseling.</div>`;
+    body+=`<div style="background:var(--highlight);border:1px solid #E7D9BE;border-radius:4px;padding:13px 15px;font-size:12.5px;color:#7A6A45;margin:18px 0">Educational tool — not medical advice. Conditions are identified with AI and matched to published prevention guidelines (USPSTF and the leading specialty bodies). A strong family history is a reason to talk to a clinician and consider genetic counseling.</div>`;
 
     body+=`<div class="mono" style="font-size:9.5px;letter-spacing:1px;color:var(--muted2);margin:26px 0 12px">RISK SNAPSHOT</div><div>`;
     rep.priorities.forEach(p=>{
@@ -454,33 +487,28 @@ function renderReport(){
     });
     body+=`</div>`;
 
-    body+=`<div class="mono" style="font-size:9.5px;letter-spacing:1px;color:var(--muted2);margin:34px 0 4px">TAILORED RECOMMENDATIONS</div>
-      <div style="font-size:12.5px;color:var(--muted);margin-bottom:12px">Click to expand. Areas with more or closer affected relatives appear first.</div>`;
-    rep.blocks.forEach((b,i)=>{
-      const open=!!openBlocks[i];
-      const caret=`font-family:var(--mono);font-size:15px;color:var(--muted2);transition:.15s;transform:rotate(${open?"90deg":"0deg"});display:inline-block`;
-      const lvlLabel = b.lvl==="base" ? "" : (LVL[b.lvl]||"").toUpperCase();
-      let inner="";
-      if(open){
-        inner=`<div style="padding:0 18px 8px 42px">`;
-        b.cats.forEach(c=>{
-          inner+=`<div style="padding:12px 0;border-top:1px solid #EDE7DA"><div class="mono" style="font-size:9.5px;letter-spacing:.8px;color:var(--muted);margin-bottom:7px">${esc(c.label)}</div>`;
-          c.items.forEach(it=> inner+=`<div style="display:flex;gap:10px;font-size:13.5px;color:var(--ink-soft);margin:5px 0;line-height:1.55"><span style="color:var(--accent);flex:0 0 auto">—</span><span>${esc(it)}</span></div>`);
-          inner+=`</div>`;
+    body+=`<div class="mono" style="font-size:9.5px;letter-spacing:1px;color:var(--muted2);margin:34px 0 4px">YOUR TAILORED PLAN</div>
+      <div style="font-size:12.5px;color:var(--muted);margin-bottom:14px">One combined set of recommendations across every area — de-duplicated, with the family condition(s) behind each shown in parentheses.</div>`;
+
+    if(rep.loading){
+      body+=`<div style="text-align:center;color:var(--muted);padding:38px 20px;font-size:13.5px"><div class="spin"></div>Building your personalized plan from the guidelines…</div>`;
+    }else if(rep.error){
+      body+=`<div style="border:1px solid #E7D9BE;background:var(--highlight);border-radius:5px;padding:16px 18px;font-size:13px;color:#7A6A45">Couldn't build the plan just now. <span class="link-mono" data-act="generate" style="color:var(--accent);cursor:pointer;border:none">Try again</span>.<div class="mono" style="font-size:10px;color:var(--muted2);margin-top:8px">${esc(rep.error)}</div></div>`;
+    }else if(rep.plan){
+      CATS.forEach(([key,label])=>{
+        const items=(rep.plan.categories&&rep.plan.categories[key])||[];
+        if(!items.length) return;
+        body+=`<div style="padding:14px 0;border-top:1px solid #E8E2D5"><div class="mono" style="font-size:9.5px;letter-spacing:.8px;color:var(--muted);margin-bottom:9px">${esc(label.toUpperCase())}</div>`;
+        items.forEach(it=>{
+          const tag = it.conditions&&it.conditions.length
+            ? ` <span style="color:var(--muted2)">(${esc(it.conditions.join(", "))})</span>` : "";
+          body+=`<div style="display:flex;gap:10px;font-size:13.5px;color:var(--ink-soft);margin:6px 0;line-height:1.55"><span style="color:var(--accent);flex:0 0 auto">—</span><span>${esc(it.text)}${tag}</span></div>`;
         });
-        inner+=`</div>`;
-      }
-      body+=`<div style="border:1px solid var(--hairline);border-radius:5px;margin-bottom:12px;overflow:hidden;background:var(--input)">
-        <div data-act="block" data-idx="${i}" style="padding:15px 18px;display:flex;align-items:flex-start;gap:12px;cursor:pointer">
-          <span style="${caret}">›</span>
-          <div style="flex:1"><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
-            <span class="display" style="font-size:17px;color:var(--ink)">${esc(b.name)}</span>
-            ${lvlLabel?`<span style="${lvlStyle(b.lvl)}">${lvlLabel}</span>`:``}
-          </div>
-          <div class="mono" style="font-size:9.5px;color:var(--muted2);margin-top:5px;line-height:1.5">${esc(b.source)}</div></div>
-        </div>${inner}</div>`;
-    });
-    body+=`<div class="mono" style="font-size:10px;line-height:1.7;color:var(--muted2);margin-top:24px;padding-top:16px;border-top:1px solid var(--hairline)">SOURCES · ${esc(rep.sources)}<br/><br/>Paraphrased from publicly available guideline recommendations for education. Confirm specifics (screening ages, thresholds, medications) with a licensed clinician.</div>`;
+        body+=`</div>`;
+      });
+      const src=(rep.plan.sources&&rep.plan.sources.length)?rep.plan.sources.join(" · "):"USPSTF and specialty guidelines";
+      body+=`<div class="mono" style="font-size:10px;line-height:1.7;color:var(--muted2);margin-top:24px;padding-top:16px;border-top:1px solid var(--hairline)">SOURCES · ${esc(src)}<br/><br/>Recommendations are generated with AI from your entered family history and paraphrase publicly available guideline recommendations for education. Confirm specifics (screening ages, thresholds, medications) with a licensed clinician.</div>`;
+    }
   }
 
   root.innerHTML=`
@@ -504,13 +532,14 @@ function closeReport(){ reportOpen=false; renderReport(); }
 /* ---------- sample / reset ---------- */
 function loadSample(){
   s=blank();
-  s.people.patGF.conditions="heart attack at 60, high blood pressure";
-  s.people.patGM.conditions="type 2 diabetes";
-  s.people.matGF.conditions="stroke, high cholesterol";
-  s.people.matGM.conditions="colon cancer at 68";
-  s.people.father.conditions="high blood pressure, high cholesterol";
-  s.people.mother.conditions="breast cancer at 52";
-  const sib="sib_"+(s.seq++); s.people[sib]={id:sib,role:"Sibling",degree:1,sex:"f",name:"Sister",conditions:"prediabetes"}; s.siblings.push(sib);
+  const set=(id,text,ex)=>{ s.people[id].conditions=text; s.people[id].extracted=ex; };
+  set("patGF","heart attack at 60, high blood pressure",[{name:"Coronary artery disease",onsetAge:60},{name:"Hypertension",onsetAge:null}]);
+  set("patGM","type 2 diabetes",[{name:"Type 2 diabetes",onsetAge:null}]);
+  set("matGF","stroke, high cholesterol",[{name:"Stroke",onsetAge:null},{name:"High cholesterol",onsetAge:null}]);
+  set("matGM","colon cancer at 68",[{name:"Colorectal cancer",onsetAge:68}]);
+  set("father","high blood pressure, high cholesterol",[{name:"Hypertension",onsetAge:null},{name:"High cholesterol",onsetAge:null}]);
+  set("mother","breast cancer at 52",[{name:"Breast cancer",onsetAge:52}]);
+  const sib="sib_"+(s.seq++); s.people[sib]={id:sib,role:"Sibling",degree:1,sex:"f",name:"Sister",conditions:"prediabetes",extracted:[{name:"Prediabetes",onsetAge:null}]}; s.siblings.push(sib);
   selId=null; closeEditor(); save(); renderStage(); updateMeta();
 }
 function reset(){ if(confirm("Clear the whole family tree and start over?")){ s=blank(); selId=null; reportOpen=false; renderReport(); closeEditor(); save(); renderStage(); updateMeta(); } }
@@ -523,7 +552,6 @@ function handleAct(e){
     case "edit": openEditor(t.getAttribute("data-id")); break;
     case "add": addRel(t.getAttribute("data-kind")); break;
     case "remove": e.stopPropagation(); removeRel(t.getAttribute("data-id")); break;
-    case "chip": addChip(t.getAttribute("data-label")); break;
     case "sex": draft.sex=t.getAttribute("data-sex"); renderSexSeg(); break;
     case "save": saveEditor(); break;
     case "clear": clearPerson(); break;
@@ -531,7 +559,6 @@ function handleAct(e){
     case "generate": generate(); break;
     case "example": loadSample(); break;
     case "reset": reset(); break;
-    case "block": openBlocks[Number(t.getAttribute("data-idx"))]=!openBlocks[Number(t.getAttribute("data-idx"))]; renderReport(); break;
     case "print": window.print(); break;
     case "closeReport": closeReport(); break;
   }
@@ -543,10 +570,9 @@ function esc(x){ return String(x==null?"":x).replace(/[<>&"']/g,c=>({'<':'&lt;',
 /* ---------- init ---------- */
 document.getElementById("app").addEventListener("click", handleAct);
 document.getElementById("f_name").addEventListener("input", e=>{ draft.name=e.target.value; });
-document.getElementById("f_cond").addEventListener("input", e=>{ draft.cond=e.target.value; renderRecognized(draft.cond); });
+document.getElementById("f_cond").addEventListener("input", e=>{ draft.cond=e.target.value; condHint(); });
 window.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeEditor(); if(reportOpen) closeReport(); } });
 
-renderQuickChips();
 renderStage();
 updateMeta();
 </script>

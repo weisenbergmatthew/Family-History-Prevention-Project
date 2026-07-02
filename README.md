@@ -26,6 +26,28 @@ Recommendations paraphrase publicly available guidance from:
   cancer screening
 - Plus osteoporosis, dementia, and general cancer-prevention guidance
 
+## How conditions and recommendations are generated
+
+Condition entry is fully free-response. When you save a relative, the app sends
+the text to a serverless function ([`api/extract.js`](api/extract.js)) that uses
+Claude to identify the specific conditions and normalize them to standard
+clinical names — so there is no fixed list to pick from.
+
+"Generate plan" sends the aggregated family history to a second function
+([`api/recommend.js`](api/recommend.js)), which asks Claude to synthesize **one
+unified, de-duplicated prevention plan** across diet, exercise, sleep, screening,
+and lifestyle — grounded in USPSTF plus the leading specialty guideline bodies,
+with each recommendation tagged with the family condition(s) it addresses. The
+per-condition **risk snapshot** (weighted by number and proximity of affected
+relatives) is computed locally and is deterministic.
+
+Both functions require an `ANTHROPIC_API_KEY` environment variable (set it in
+the Vercel project settings). If the API is unavailable, the app degrades
+gracefully — condition extraction falls back to a local keyword matcher, and the
+plan shows a retry.
+
+Model: `claude-opus-4-8`.
+
 ## Design
 
 The interface uses a light, editorial **"Monograph"** style: a warm paper
