@@ -344,7 +344,9 @@ function layout(){
   const pos={};
   let cx=0;
   patGroup.forEach(id=>{ pos[id]={cx,top:G.Y1}; cx+=STEP; });
-  cx+=STEP*0.7;
+  // Wide center gap between the two family sides. Kept ≥ one column so the two
+  // inner grandparent labels never collide, even with no aunts/uncles.
+  cx+=STEP*1.05;
   matGroup.forEach(id=>{ pos[id]={cx,top:G.Y1}; cx+=STEP; });
   const cen=g=>{ const xs=g.map(i=>pos[i].cx); return (Math.min(...xs)+Math.max(...xs))/2; };
   const pc=cen(patGroup), mc=cen(matGroup);
