@@ -30,16 +30,9 @@ Recommendations paraphrase publicly available guidance from:
 
 The interface uses a light, editorial **"Monograph"** style: a warm paper
 palette, `Newsreader` (serif) paired with `IBM Plex Mono`, and a single reserved
-accent color. The family tree is drawn as a proper **clinical genogram** —
+vermilion accent. The family tree is drawn as a proper **clinical genogram** —
 squares for male relatives, circles for female, hairline connectors, and
 condition "chips" under each person.
-
-A small **Feel** control (top-right) lets you tune the look live, and your
-choice is saved in the browser:
-
-- **Accent** — vermilion (default), forest, indigo, or mono
-- **Voice** — Editorial (serif) or Clinical (uppercase mono)
-- **Density** — Airy (default) or Compact
 
 ## Running it
 

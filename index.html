@@ -32,8 +32,6 @@
 
   .mono{font-family:var(--mono)}
   .display{font-family:var(--display)}
-  /* Clinical voice: swap the serif display face for uppercase mono */
-  .voice-clinical .display{font-family:var(--mono) !important; text-transform:uppercase; letter-spacing:.5px}
 
   .shell{max-width:1180px; margin:0 auto; padding-left:34px; padding-right:34px}
 
@@ -51,13 +49,6 @@
   .remove-x:hover{border-color:var(--accent) !important; color:var(--accent) !important}
   .quick-chip{transition:.12s; cursor:pointer}
   .quick-chip:hover{border-color:var(--ink) !important}
-
-  .feel-swatch{width:15px; height:15px; border-radius:3px; cursor:pointer; border:1px solid rgba(26,23,18,.18); transition:.12s}
-  .feel-swatch:hover{transform:scale(1.12)}
-  .feel-swatch.active{box-shadow:0 0 0 2px var(--paper),0 0 0 3.5px var(--ink)}
-  .feel-toggle{cursor:pointer; color:var(--muted); border-bottom:1px solid transparent; transition:.12s}
-  .feel-toggle:hover{color:var(--ink)}
-  .feel-toggle.active{color:var(--ink); border-bottom-color:var(--ink)}
 
   #scrim{position:fixed; inset:0; background:rgba(26,23,18,.18); z-index:49; opacity:0; pointer-events:none; transition:opacity .24s}
   #scrim.open{opacity:1; pointer-events:auto}
@@ -108,30 +99,9 @@
     </div>
   </div>
 
-  <!-- HINT + FEEL CONTROLS -->
-  <div class="shell" style="padding-top:14px;display:flex;justify-content:space-between;align-items:flex-start;gap:24px;flex-wrap:wrap">
+  <!-- HINT -->
+  <div class="shell" style="padding-top:14px">
     <p style="margin:0;font-size:15px;color:var(--muted);max-width:680px">Click a relative to record the conditions they had. Use the dashed <b style="color:var(--ink)">+</b> markers to add aunts, uncles, or siblings. Everything saves in this browser.</p>
-    <div style="display:flex;align-items:center;gap:22px;flex-wrap:wrap">
-      <div style="display:flex;align-items:center;gap:8px">
-        <span class="mono" style="font-size:9.5px;letter-spacing:1px;color:var(--muted2)">ACCENT</span>
-        <div style="display:flex;gap:6px" id="feelAccent">
-          <div class="feel-swatch" data-act="feel-accent" data-val="#C0432B" style="background:#C0432B" title="Vermilion"></div>
-          <div class="feel-swatch" data-act="feel-accent" data-val="#2F5D3A" style="background:#2F5D3A" title="Forest"></div>
-          <div class="feel-swatch" data-act="feel-accent" data-val="#34507A" style="background:#34507A" title="Indigo"></div>
-          <div class="feel-swatch" data-act="feel-accent" data-val="#1A1712" style="background:#1A1712" title="Mono"></div>
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:9px">
-        <span class="mono" style="font-size:9.5px;letter-spacing:1px;color:var(--muted2)">VOICE</span>
-        <span class="mono feel-toggle" data-act="feel-voice" data-val="Editorial" style="font-size:9.5px;letter-spacing:.5px">EDITORIAL</span>
-        <span class="mono feel-toggle" data-act="feel-voice" data-val="Clinical" style="font-size:9.5px;letter-spacing:.5px">CLINICAL</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:9px">
-        <span class="mono" style="font-size:9.5px;letter-spacing:1px;color:var(--muted2)">DENSITY</span>
-        <span class="mono feel-toggle" data-act="feel-density" data-val="Airy" style="font-size:9.5px;letter-spacing:.5px">AIRY</span>
-        <span class="mono feel-toggle" data-act="feel-density" data-val="Compact" style="font-size:9.5px;letter-spacing:.5px">COMPACT</span>
-      </div>
-    </div>
   </div>
 
   <!-- GENOGRAM STAGE -->
@@ -206,33 +176,8 @@ const QUICK = ["Heart attack","High blood pressure","High cholesterol","Type 2 d
 const CATS = [["diet","Diet"],["exercise","Exercise"],["sleep","Sleep"],["screening","Screening & clinical"],["lifestyle","Lifestyle"]];
 const LVL = {high:"Higher priority", mod:"Moderate", low:"Worth noting"};
 
-/* ---------- geometry (density) ---------- */
-const GEO = {
-  Airy:   {CW:146, STEP:186, Y0:34, Y1:230, Y2:426, BUS1:184, BUS2:378, S:56},
-  Compact:{CW:118, STEP:150, Y0:30, Y1:196, Y2:362, BUS1:156, BUS2:322, S:46}
-};
-let G = GEO.Airy;
-
-/* ---------- feel (accent / voice / density) ---------- */
-let feel = loadFeel();
-function loadFeel(){
-  try{ const r=localStorage.getItem("fht_feel"); if(r){ const f=JSON.parse(r); if(f) return f; } }catch(e){}
-  return {accent:"#C0432B", voice:"Editorial", density:"Airy"};
-}
-function saveFeel(){ try{ localStorage.setItem("fht_feel", JSON.stringify(feel)); }catch(e){} }
-function applyFeel(){
-  document.documentElement.style.setProperty("--accent", feel.accent);
-  const app = document.getElementById("app");
-  app.classList.toggle("voice-clinical", feel.voice==="Clinical");
-  G = GEO[feel.density] || GEO.Airy;
-  // reflect active states in the Feel controls
-  document.querySelectorAll('#feelAccent .feel-swatch').forEach(el=>
-    el.classList.toggle("active", el.getAttribute("data-val").toLowerCase()===feel.accent.toLowerCase()));
-  document.querySelectorAll('[data-act="feel-voice"]').forEach(el=>
-    el.classList.toggle("active", el.getAttribute("data-val")===feel.voice));
-  document.querySelectorAll('[data-act="feel-density"]').forEach(el=>
-    el.classList.toggle("active", el.getAttribute("data-val")===feel.density));
-}
+/* ---------- geometry (fixed: airy) ---------- */
+const G = {CW:146, STEP:186, Y0:34, Y1:230, Y2:426, BUS1:184, BUS2:378, S:56};
 
 /* ---------- persistent model ---------- */
 let s = load();
@@ -589,9 +534,6 @@ function handleAct(e){
     case "block": openBlocks[Number(t.getAttribute("data-idx"))]=!openBlocks[Number(t.getAttribute("data-idx"))]; renderReport(); break;
     case "print": window.print(); break;
     case "closeReport": closeReport(); break;
-    case "feel-accent": feel.accent=t.getAttribute("data-val"); saveFeel(); applyFeel(); renderStage(); break;
-    case "feel-voice": feel.voice=t.getAttribute("data-val"); saveFeel(); applyFeel(); renderStage(); break;
-    case "feel-density": feel.density=t.getAttribute("data-val"); saveFeel(); applyFeel(); renderStage(); break;
   }
 }
 
@@ -604,7 +546,6 @@ document.getElementById("f_name").addEventListener("input", e=>{ draft.name=e.ta
 document.getElementById("f_cond").addEventListener("input", e=>{ draft.cond=e.target.value; renderRecognized(draft.cond); });
 window.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeEditor(); if(reportOpen) closeReport(); } });
 
-applyFeel();
 renderQuickChips();
 renderStage();
 updateMeta();
