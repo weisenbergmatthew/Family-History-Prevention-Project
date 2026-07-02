@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Family Health Tree — Hereditary Risk & Prevention</title>
+<style>
+  :root{
+    --bg:#0f1720; --panel:#152130; --panel2:#1b2a3d; --ink:#e8eef5; --muted:#9db0c6;
+    --line:#2a3b52; --accent:#4dd0a7; --accent2:#5aa2ff;
+    --warn:#f2b23e; --danger:#ef6b6b; --chip:#22374f; --node:#1e3350; --nodeOn:#1d4a3f;
+    --shadow:0 8px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:radial-gradient(1200px 600px at 70% -10%,#1a2a3d,#0f1720 60%);
+    color:var(--ink); line-height:1.5; min-height:100vh;
+  }
+  header.top{
+    padding:22px 28px 14px; border-bottom:1px solid var(--line);
+    display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap;
+  }
+  .brand h1{font-size:20px; margin:0; letter-spacing:.2px}
+  .brand p{margin:4px 0 0; color:var(--muted); font-size:13px; max-width:640px}
+  .brand .logo{display:inline-flex;align-items:center;gap:10px}
+  .leaf{width:26px;height:26px;flex:0 0 auto}
+  .actions{display:flex; gap:10px; flex-wrap:wrap}
+  button{
+    font:inherit; cursor:pointer; border-radius:10px; border:1px solid var(--line);
+    background:var(--panel2); color:var(--ink); padding:9px 14px; transition:.15s;
+  }
+  button:hover{border-color:var(--accent2)}
+  button.primary{background:linear-gradient(180deg,#57b98f,#3f9c78); border-color:#3f9c78; color:#06231a; font-weight:600}
+  button.primary:hover{filter:brightness(1.06)}
+  button.ghost{background:transparent}
+  button.small{padding:5px 9px; font-size:12px; border-radius:8px}
+  .wrap{display:grid; grid-template-columns:1fr; gap:0}
+  .toolbar{
+    display:flex; gap:10px; align-items:center; padding:12px 28px; border-bottom:1px solid var(--line);
+    flex-wrap:wrap; background:rgba(21,33,48,.5); position:sticky; top:0; z-index:5; backdrop-filter:blur(6px);
+  }
+  .toolbar .hint{color:var(--muted); font-size:12.5px}
+  .treeScroll{overflow:auto; padding:22px 20px 30px}
+  svg.tree{display:block; margin:0 auto}
+  .node rect{fill:var(--node); stroke:#31507a; stroke-width:1.5; rx:12; ry:12; transition:.15s}
+  .node.on rect{fill:var(--nodeOn); stroke:#3aa981}
+  .node.sel rect{stroke:var(--accent2); stroke-width:2.5}
+  .node:hover rect{stroke:var(--accent2)}
+  .node text{fill:var(--ink); pointer-events:none}
+  .node .role{fill:var(--muted); font-size:9px; letter-spacing:.3px; text-transform:uppercase}
+  .node .rolebig{fill:var(--ink); font-size:12.5px; font-weight:600}
+  .node .pname{fill:var(--ink); font-size:12.5px; font-weight:600}
+  .node .tap{fill:var(--muted); font-size:10.5px}
+  .link{stroke:#33496a; stroke-width:1.6; fill:none}
+  .node .cond{fill:var(--accent); font-size:10.5px}
+  /* inline add-a-relative buttons */
+  .addnode{cursor:pointer}
+  .addnode rect{fill:rgba(90,162,255,.04); stroke:#33496a; stroke-width:1.5; stroke-dasharray:5 4}
+  .addnode:hover rect{stroke:var(--accent2); fill:rgba(90,162,255,.09)}
+  .addnode text{fill:var(--muted); font-size:11px; pointer-events:none}
+  .addnode .plus{fill:var(--accent2); font-size:19px; font-weight:600}
+  .addnode:hover text{fill:var(--ink)}
+
+  /* Editor drawer */
+  .drawer{
+    position:fixed; top:0; right:0; height:100%; width:min(420px,92vw); background:var(--panel);
+    border-left:1px solid var(--line); box-shadow:var(--shadow); transform:translateX(100%);
+    transition:transform .22s ease; z-index:40; display:flex; flex-direction:column;
+  }
+  .drawer.open{transform:translateX(0)}
+  .drawer h3{margin:0; font-size:16px}
+  .drawer .dhead{padding:18px 20px; border-bottom:1px solid var(--line); display:flex;justify-content:space-between;align-items:center}
+  .drawer .dbody{padding:18px 20px; overflow:auto}
+  .drawer .role2{color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.5px}
+  label.fld{display:block; font-size:12.5px; color:var(--muted); margin:14px 0 6px}
+  input[type=text], textarea{
+    width:100%; background:var(--panel2); border:1px solid var(--line); color:var(--ink);
+    border-radius:10px; padding:10px 12px; font:inherit; resize:vertical;
+  }
+  textarea{min-height:120px}
+  .chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px}
+  .chip{background:var(--chip); border:1px solid var(--line); color:var(--ink); border-radius:999px; padding:4px 10px; font-size:12px; cursor:pointer}
+  .chip:hover{border-color:var(--accent2)}
+  .detected{margin-top:14px; padding:12px; border:1px dashed #35507a; border-radius:10px; background:rgba(90,162,255,.06)}
+  .detected .tag{display:inline-block; background:#1f3a5c; border:1px solid #2e5384; color:#bcd6ff; padding:3px 9px; border-radius:8px; font-size:11.5px; margin:3px 4px 0 0}
+  .detected .none{color:var(--muted); font-size:12.5px}
+
+  /* Report modal */
+  .overlay{position:fixed; inset:0; background:rgba(6,10,16,.6); backdrop-filter:blur(3px); z-index:50; display:none}
+  .overlay.open{display:block}
+  .report{
+    position:fixed; inset:4vh 0 0; margin:0 auto; width:min(880px,94vw); max-height:92vh; overflow:auto;
+    background:var(--panel); border:1px solid var(--line); border-radius:16px 16px 0 0; box-shadow:var(--shadow); z-index:51;
+  }
+  .report .rhead{position:sticky; top:0; background:var(--panel); border-bottom:1px solid var(--line);
+    padding:18px 24px; display:flex; justify-content:space-between; align-items:center; z-index:2}
+  .report .rbody{padding:8px 24px 40px}
+  .disclaimer{background:rgba(242,178,62,.09); border:1px solid #5a4a24; color:#f4d79a; padding:12px 14px; border-radius:10px; font-size:12.5px; margin:14px 0}
+  .prio{display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; margin:14px 0 6px}
+  .prio .card{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:12px 14px}
+  .prio .card h4{margin:0 0 4px; font-size:14px}
+  .prio .lvl{font-size:11px; padding:2px 8px; border-radius:999px; display:inline-block; font-weight:600}
+  .lvl.high{background:#4a1f22; color:#ffb3b3; border:1px solid #7a3336}
+  .lvl.mod{background:#4a3a1a; color:#ffdf9e; border:1px solid #7a5f24}
+  .lvl.low{background:#1f3a2e; color:#a9e9cd; border:1px solid #2f6b53}
+  .prio .who{color:var(--muted); font-size:12px; margin-top:6px}
+  .recBlock{border:1px solid var(--line); border-radius:14px; margin:16px 0; overflow:hidden}
+  .recBlock .rb-h{padding:12px 16px; background:var(--panel2); display:flex; align-items:center; justify-content:space-between; gap:12px; cursor:pointer}
+  .recBlock .rb-h h3{margin:0; font-size:15px}
+  .recBlock .src{color:var(--muted); font-size:11.5px}
+  .recBlock .rb-b{padding:6px 16px 14px; display:none}
+  .recBlock.open .rb-b{display:block}
+  .catRow{padding:10px 0; border-top:1px solid var(--line)}
+  .catRow:first-child{border-top:none}
+  .catRow .cat{display:flex; align-items:center; gap:8px; font-weight:600; font-size:13px; margin-bottom:4px}
+  .catRow .ic{width:18px; text-align:center}
+  .catRow ul{margin:4px 0 0; padding-left:22px}
+  .catRow li{margin:3px 0; font-size:13.5px}
+  .caret{transition:.15s}
+  .recBlock.open .caret{transform:rotate(90deg)}
+  .empty-state{color:var(--muted); text-align:center; padding:30px}
+  .foot{color:var(--muted); font-size:11.5px; padding:0 24px 26px}
+  a{color:var(--accent2)}
+  .pill-count{background:#213a2f;border:1px solid #2f6b53;color:#a9e9cd;border-radius:999px;padding:2px 8px;font-size:11px}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="logo">
+      <svg class="leaf" viewBox="0 0 24 24" fill="none"><path d="M12 2C7 6 4 10 4 14a8 8 0 0016 0c0-4-3-8-8-12z" fill="#4dd0a7"/><path d="M12 6v13" stroke="#0f1720" stroke-width="1.4"/></svg>
+      <h1>Family Health Tree</h1>
+    </div>
+    <p>Map your family's health history, then get prevention guidance tailored to your hereditary risk — grounded in guidelines from the ACC/AHA, ADA, AHA/ASA, and USPSTF/ACS.</p>
+  </div>
+  <div class="actions">
+    <button class="ghost" id="btnLoadSample">Load example family</button>
+    <button class="ghost" id="btnReset">Reset</button>
+    <button class="primary" id="btnGenerate">Generate recommendations →</button>
+  </div>
+</header>
+
+<div class="toolbar">
+  <span class="hint">Click any relative to add the health conditions they had. Use the dashed <b>+</b> cards in each row to add siblings or aunts/uncles. Filled-in relatives glow green, and your entries save automatically in this browser.</span>
+</div>
+
+<div class="treeScroll">
+  <svg class="tree" id="tree"></svg>
+</div>
+
+<!-- Editor drawer -->
+<div class="drawer" id="drawer">
+  <div class="dhead">
+    <div>
+      <div class="role2" id="drawerRole">Relative</div>
+      <h3 id="drawerTitle">Person</h3>
+    </div>
+    <button class="ghost small" id="drawerClose">✕</button>
+  </div>
+  <div class="dbody">
+    <label class="fld" for="nameInput">Name (optional)</label>
+    <input type="text" id="nameInput" placeholder="e.g. Grandma Rose" />
+
+    <label class="fld" for="condInput">Health conditions (free text)</label>
+    <textarea id="condInput" placeholder="Type anything — e.g. 'had a heart attack at 58, high blood pressure, type 2 diabetes'. We'll recognize the conditions automatically."></textarea>
+
+    <div class="chips" id="quickChips"></div>
+
+    <div class="detected">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Recognized conditions</div>
+      <div id="detectedTags"><span class="none">Nothing recognized yet.</span></div>
+    </div>
+
+    <div style="margin-top:16px; display:flex; gap:10px">
+      <button class="primary" id="drawerSave">Save</button>
+      <button class="ghost" id="drawerClear">Clear this person</button>
+    </div>
+  </div>
+</div>
+
+<!-- Report -->
+<div class="overlay" id="overlay"></div>
+<div class="report" id="report" style="display:none">
+  <div class="rhead">
+    <h2 style="margin:0;font-size:18px">Your personalized prevention plan</h2>
+    <div style="display:flex;gap:8px">
+      <button class="ghost small" id="printReport">Print / Save PDF</button>
+      <button class="ghost small" id="reportClose">Close</button>
+    </div>
+  </div>
+  <div class="rbody" id="reportBody"></div>
+  <div class="foot" id="reportFoot"></div>
+</div>
+
+<script>
+/* ============================================================
+   1. KNOWLEDGE BASE
+   Each condition: keywords (for free-text parsing), the guideline
+   source, and prevention guidance by category. Guidance is
+   general, educational, and paraphrased from public guidelines.
+   ============================================================ */
+const KB = {
+  cad: {
+    name: "Coronary heart disease / heart attack",
+    source: "ACC/AHA Guideline on the Primary Prevention of Cardiovascular Disease",
+    keywords: ["heart attack","heart-attack","myocardial","mi ","coronary","cad","angina","bypass","cabg","stent","ischemic heart","heart disease","cardiac arrest"],
+    rec: {
+      diet: ["Emphasize a heart-healthy dietary pattern (Mediterranean or DASH): vegetables, fruits, legumes, whole grains, nuts, fish.",
+             "Minimize processed meats, refined carbohydrates, sugary drinks, and trans fats; limit sodium toward <2,300 mg/day."],
+      exercise: ["Aim for ≥150 min/week of moderate (or 75 min vigorous) aerobic activity, plus 2 days/week of resistance training."],
+      sleep: ["Target 7–9 hours nightly; untreated sleep apnea raises cardiac risk — get evaluated if you snore heavily or wake unrefreshed."],
+      screening: ["Know your blood pressure, LDL cholesterol, and fasting glucose. Ask your clinician about your 10-year ASCVD risk estimate.",
+                  "With a strong family history, a coronary artery calcium (CAC) score can help refine risk and statin decisions."],
+      lifestyle: ["Do not smoke and avoid secondhand smoke.","Keep BMI in a healthy range and manage stress."]
+    }
+  },
+  htn: {
+    name: "High blood pressure (hypertension)",
+    source: "ACC/AHA 2017 High Blood Pressure Guideline",
+    keywords: ["high blood pressure","hypertension","htn","elevated bp"],
+    rec: {
+      diet: ["Follow the DASH eating plan; reduce sodium (ideal <1,500 mg/day) and increase potassium-rich foods (unless kidney disease limits it).",
+             "Limit alcohol to ≤1 drink/day (women) or ≤2 (men)."],
+      exercise: ["Regular aerobic exercise (90–150 min/week) plus dynamic resistance training can lower systolic BP by ~5–8 mmHg."],
+      sleep: ["Prioritize 7–9 hours; short sleep and sleep apnea both raise blood pressure."],
+      screening: ["Check blood pressure regularly — consider validated home monitoring. Normal is <120/80 mmHg.","Discuss thresholds for medication with your clinician."],
+      lifestyle: ["Maintain a healthy weight (even a 1 kg loss can lower BP) and stop smoking."]
+    }
+  },
+  chol: {
+    name: "High cholesterol",
+    source: "ACC/AHA 2018 Guideline on the Management of Blood Cholesterol",
+    keywords: ["high cholesterol","cholesterol","hyperlipidemia","high ldl","hypercholesterolemia","triglycerides","familial hypercholesterolemia"],
+    rec: {
+      diet: ["Reduce saturated fat to <6% of calories; replace with unsaturated fats (olive oil, nuts, fish). Add soluble fiber (oats, beans).",
+             "Cut trans fats and limit refined sugar."],
+      exercise: ["Regular aerobic activity raises HDL and lowers triglycerides — aim for ≥150 min/week."],
+      sleep: ["Adequate sleep supports healthy lipid metabolism; aim 7–9 hours."],
+      screening: ["Get a fasting lipid panel. With a strong family history, ask about screening for familial hypercholesterolemia and possible earlier statin therapy."],
+      lifestyle: ["Achieve/maintain a healthy weight and avoid tobacco."]
+    }
+  },
+  stroke: {
+    name: "Stroke / TIA",
+    source: "AHA/ASA Guideline for the Primary Prevention of Stroke",
+    keywords: ["stroke","tia","transient ischemic","cerebrovascular","brain bleed","aneurysm"],
+    rec: {
+      diet: ["Mediterranean or DASH pattern; keep sodium low and eat plenty of fruits/vegetables.","Limit alcohol."],
+      exercise: ["≥150 min/week moderate activity lowers stroke risk."],
+      sleep: ["Treat sleep apnea; aim for consistent 7–9 hours."],
+      screening: ["Control blood pressure aggressively (the #1 modifiable stroke risk factor). Screen for atrial fibrillation, diabetes, and high cholesterol.",
+                  "Ask about aneurysm screening only if there is a strong specific family history."],
+      lifestyle: ["Do not smoke; manage weight and diabetes."]
+    }
+  },
+  t2d: {
+    name: "Type 2 diabetes",
+    source: "American Diabetes Association — Standards of Care in Diabetes",
+    keywords: ["type 2 diabetes","type ii diabetes","diabetes","t2d","high blood sugar","insulin resistance","prediabetes","a1c"],
+    rec: {
+      diet: ["Favor high-fiber, minimally processed foods; limit sugar-sweetened beverages and refined carbohydrates.","Any sustained weight loss of 5–10% substantially lowers diabetes risk."],
+      exercise: ["≥150 min/week of moderate activity plus resistance training improves insulin sensitivity; break up prolonged sitting."],
+      sleep: ["Aim 7–9 hours; both short and irregular sleep worsen glucose control."],
+      screening: ["With a first-degree relative with diabetes, ask to begin screening (A1c or fasting glucose) earlier — often by age 35 or sooner if overweight.",
+                  "Know your A1c; 5.7–6.4% signals prediabetes and is a window for prevention."],
+      lifestyle: ["Structured lifestyle programs (like the Diabetes Prevention Program) cut progression to diabetes by ~58%."]
+    }
+  },
+  breast_ca: {
+    name: "Breast cancer",
+    source: "USPSTF & American Cancer Society screening recommendations; consider genetic counseling",
+    keywords: ["breast cancer","breast ca","brca"],
+    rec: {
+      diet: ["Limit alcohol (risk rises with each drink) and maintain a healthy weight, especially after menopause.","Emphasize a plant-forward diet."],
+      exercise: ["≥150–300 min/week of moderate activity is associated with lower breast cancer risk."],
+      sleep: ["Maintain regular sleep; aim 7–9 hours."],
+      screening: ["Discuss starting mammography earlier than the general age depending on relatives' diagnosis ages.",
+                  "A relative with breast/ovarian cancer (especially young or male breast cancer) may warrant genetic counseling and BRCA testing — ask your clinician."],
+      lifestyle: ["Avoid tobacco; breastfeeding and limiting postmenopausal hormone therapy also lower risk."]
+    }
+  },
+  colorectal_ca: {
+    name: "Colorectal cancer",
+    source: "USPSTF & American Cancer Society colorectal screening recommendations",
+    keywords: ["colon cancer","colorectal","rectal cancer","bowel cancer","polyps","lynch"],
+    rec: {
+      diet: ["Increase fiber (whole grains, legumes, vegetables); limit red and processed meats and alcohol."],
+      exercise: ["Regular physical activity lowers colorectal cancer risk — aim ≥150 min/week."],
+      sleep: ["Maintain healthy, regular sleep."],
+      screening: ["With a first-degree relative diagnosed with colorectal cancer, guidelines advise starting colonoscopy at age 40 (or 10 years before the relative's diagnosis age), and repeating more frequently.",
+                  "Multiple affected relatives or very young onset may indicate Lynch syndrome — ask about genetic evaluation."],
+      lifestyle: ["Avoid tobacco and maintain a healthy weight."]
+    }
+  },
+  prostate_ca: {
+    name: "Prostate cancer",
+    source: "American Cancer Society & AUA screening recommendations",
+    keywords: ["prostate cancer","prostate ca"],
+    rec: {
+      diet: ["Emphasize vegetables and healthy fats; maintain a healthy weight."],
+      exercise: ["Regular activity supports overall and prostate health."],
+      sleep: ["Aim for 7–9 hours."],
+      screening: ["With a father or brother diagnosed with prostate cancer, discuss starting PSA-based screening conversations earlier (around age 40–45)."],
+      lifestyle: ["Avoid tobacco."]
+    }
+  },
+  melanoma: {
+    name: "Melanoma / skin cancer",
+    source: "American Academy of Dermatology & American Cancer Society guidance",
+    keywords: ["melanoma","skin cancer","basal cell","squamous cell"],
+    rec: {
+      diet: ["No specific diet, but overall healthy eating supports skin health."],
+      exercise: ["Exercise outdoors with sun protection."],
+      sleep: ["Standard 7–9 hours."],
+      screening: ["With a family history of melanoma, do monthly skin self-exams and get periodic dermatologist skin checks.","Watch moles for the ABCDEs (asymmetry, border, color, diameter, evolving)."],
+      lifestyle: ["Use broad-spectrum SPF 30+, avoid tanning beds, and seek shade at midday."]
+    }
+  },
+  osteoporosis: {
+    name: "Osteoporosis",
+    source: "Bone Health & Osteoporosis Foundation / USPSTF guidance",
+    keywords: ["osteoporosis","osteopenia","hip fracture","low bone density","brittle bones"],
+    rec: {
+      diet: ["Get adequate calcium (~1,000–1,200 mg/day, ideally from food) and vitamin D (800–1,000 IU/day)."],
+      exercise: ["Do weight-bearing and resistance exercise regularly to build/maintain bone; balance training reduces falls."],
+      sleep: ["Adequate sleep supports bone remodeling."],
+      screening: ["A parental history of hip fracture is a risk factor — discuss earlier bone density (DXA) screening.","Ask about a FRAX fracture-risk assessment."],
+      lifestyle: ["Avoid smoking and excess alcohol; both weaken bone."]
+    }
+  },
+  dementia: {
+    name: "Alzheimer's / dementia",
+    source: "Lancet Commission on dementia prevention & Alzheimer's Association guidance",
+    keywords: ["alzheimer","dementia","memory loss","cognitive decline"],
+    rec: {
+      diet: ["The MIND diet (a Mediterranean-DASH hybrid emphasizing leafy greens, berries, nuts, fish) is associated with slower cognitive decline."],
+      exercise: ["Regular aerobic exercise is among the strongest modifiable protective factors — aim ≥150 min/week."],
+      sleep: ["Prioritize quality sleep (7–9 hours); poor sleep is linked to higher dementia risk. Evaluate sleep apnea."],
+      screening: ["Protect hearing (use hearing aids if needed), control blood pressure and diabetes in midlife, and stay socially and mentally engaged.",
+                  "Discuss vascular risk-factor control with your clinician."],
+      lifestyle: ["Avoid smoking, limit alcohol, and treat depression."]
+    }
+  },
+  cancer_generic: {
+    name: "Cancer (unspecified)",
+    source: "American Cancer Society general cancer-prevention guidance",
+    keywords: ["cancer","tumor","malignancy","leukemia","lymphoma","oncology"],
+    rec: {
+      diet: ["Eat a plant-forward diet, limit processed and red meat, alcohol, and added sugar."],
+      exercise: ["Stay physically active (≥150 min/week) and limit sedentary time."],
+      sleep: ["Maintain regular, adequate sleep."],
+      screening: ["Stay up to date on age-appropriate cancer screenings; tell your clinician the specific cancers and ages in your family so screening can be personalized."],
+      lifestyle: ["Do not use tobacco, protect skin from UV, and maintain a healthy weight."]
+    }
+  }
+};
+
+const QUICK = ["Heart attack","High blood pressure","High cholesterol","Type 2 diabetes","Stroke","Breast cancer","Colon cancer","Prostate cancer","Osteoporosis","Alzheimer's","Melanoma"];
+
+const CAT_META = {
+  diet:{label:"Diet",ic:"🥗"}, exercise:{label:"Exercise",ic:"🏃"}, sleep:{label:"Sleep",ic:"😴"},
+  screening:{label:"Screening & clinical",ic:"🩺"}, lifestyle:{label:"Lifestyle",ic:"🌿"}
+};
+
+/* ============================================================
+   2. FAMILY TREE MODEL
+   ============================================================ */
+const REL = {
+  patGrandfather:{role:"Paternal grandfather",degree:2},
+  patGrandmother:{role:"Paternal grandmother",degree:2},
+  matGrandfather:{role:"Maternal grandfather",degree:2},
+  matGrandmother:{role:"Maternal grandmother",degree:2},
+  father:{role:"Father",degree:1},
+  mother:{role:"Mother",degree:1},
+  self:{role:"You",degree:0},
+};
+
+let state = loadState();
+
+function blankState(){
+  const people = {};
+  const put = (id,role,degree,extra={})=>{ people[id]={id,role,degree,name:"",conditions:"",...extra}; };
+  put("patGrandfather","Paternal grandfather",2);
+  put("patGrandmother","Paternal grandmother",2);
+  put("matGrandfather","Maternal grandfather",2);
+  put("matGrandmother","Maternal grandmother",2);
+  put("father","Father",1);
+  put("mother","Mother",1);
+  put("self","You",0);
+  return {
+    people,
+    patAunts:[], matAunts:[], siblings:[],
+    seq:1
+  };
+}
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem("fht_state");
+    if(raw){ const s = JSON.parse(raw); if(s && s.people) return s; }
+  }catch(e){}
+  return blankState();
+}
+function saveState(){ try{ localStorage.setItem("fht_state", JSON.stringify(state)); }catch(e){} }
+
+function addDynamic(kind){
+  const id = kind+"_"+(state.seq++);
+  if(kind==="sibling"){ state.people[id]={id,role:"Sibling",degree:1,name:"",conditions:""}; state.siblings.push(id); }
+  if(kind==="patAunt"){ state.people[id]={id,role:"Paternal aunt/uncle",degree:2,name:"",conditions:""}; state.patAunts.push(id); }
+  if(kind==="matAunt"){ state.people[id]={id,role:"Maternal aunt/uncle",degree:2,name:"",conditions:""}; state.matAunts.push(id); }
+  saveState(); render();
+  openEditor(id);
+}
+function removePerson(id){
+  delete state.people[id];
+  state.patAunts = state.patAunts.filter(x=>x!==id);
+  state.matAunts = state.matAunts.filter(x=>x!==id);
+  state.siblings = state.siblings.filter(x=>x!==id);
+  saveState(); render();
+}
+
+/* ============================================================
+   3. CONDITION PARSER
+   ============================================================ */
+function detectConditions(text){
+  if(!text) return [];
+  const t = " "+text.toLowerCase().replace(/[\/,]/g," ")+" ";
+  const found = new Set();
+  for(const key in KB){
+    for(const kw of KB[key].keywords){
+      if(t.includes(kw)){ found.add(key); break; }
+    }
+  }
+  // If a specific cancer matched, drop the generic cancer flag to avoid double-counting.
+  const specificCancers = ["breast_ca","colorectal_ca","prostate_ca","melanoma"];
+  if(specificCancers.some(c=>found.has(c))) {
+    // keep generic only if the word 'cancer' clearly refers to something else; simplest: keep both is noisy, so remove generic
+    found.delete("cancer_generic");
+  }
+  return [...found];
+}
+
+/* ============================================================
+   4. RISK AGGREGATION
+   degree 1 (parent/sibling) weight 3; degree 2 (grandparent/
+   aunt/uncle) weight 1. Level: high >=4 or two first-degree,
+   moderate any first-degree or score>=2, low otherwise.
+   ============================================================ */
+function aggregate(){
+  const agg = {}; // key -> {score, firstDegree, people:[{role,name}]}
+  const weightFor = d => d===1?3:1;
+  for(const id in state.people){
+    if(id==="self") continue;
+    const p = state.people[id];
+    const conds = detectConditions(p.conditions);
+    for(const key of conds){
+      if(!agg[key]) agg[key]={key,score:0,firstDegree:0,people:[]};
+      agg[key].score += weightFor(p.degree);
+      if(p.degree===1) agg[key].firstDegree++;
+      agg[key].people.push({role:p.role, name:p.name});
+    }
+  }
+  return agg;
+}
+function levelOf(a){
+  if(a.firstDegree>=2 || a.score>=6) return "high";
+  if(a.firstDegree>=1 || a.score>=2) return "mod";
+  return "low";
+}
+const LEVEL_LABEL = {high:"Higher priority", mod:"Moderate priority", low:"Worth noting"};
+
+/* ============================================================
+   5. SVG TREE RENDERING
+   ============================================================ */
+const NW=158, NH=72, HGAP=26, ROW_Y=[30,200,370];
+function render(){
+  const svg = document.getElementById("tree");
+  // Build ordered rows
+  const gpRow = ["patGrandfather","patGrandmother","matGrandfather","matGrandmother"];
+  const patGroup = [...state.patAunts, "father"];      // father's generation, paternal side
+  const matGroup = ["mother", ...state.matAunts];
+  const parentRow = [...patGroup, ...matGroup];
+  const selfRow = [...state.siblings, "self"];
+
+  // X layout: place parentRow left-to-right, center groups above.
+  const pos = {};
+  const step = NW+HGAP;
+  // Lay out the paternal group, then an extra gap, then the maternal group,
+  // so the two inner grandparents (paternal grandmother / maternal grandfather)
+  // don't collide when there are few aunts/uncles.
+  let x = 0;
+  patGroup.forEach(id=>{ pos[id]={x, y:ROW_Y[1]}; x+=step; });
+  x += step; // separation between the two family sides
+  matGroup.forEach(id=>{ pos[id]={x, y:ROW_Y[1]}; x+=step; });
+
+  // Grandparents centered above their child group
+  function centerOf(ids){ const xs=ids.map(i=>pos[i].x); return (Math.min(...xs)+Math.max(...xs))/2; }
+  const patCenter = centerOf(patGroup);
+  const matCenter = centerOf(matGroup);
+  pos["patGrandfather"]={x:patCenter-step/2, y:ROW_Y[0]};
+  pos["patGrandmother"]={x:patCenter+step/2, y:ROW_Y[0]};
+  pos["matGrandfather"]={x:matCenter-step/2, y:ROW_Y[0]};
+  pos["matGrandmother"]={x:matCenter+step/2, y:ROW_Y[0]};
+
+  // Self row centered under father+mother midpoint
+  const fmCenter = (pos["father"].x + pos["mother"].x)/2;
+  const selfWidth = (selfRow.length-1)*step;
+  let sx = fmCenter - selfWidth/2;
+  selfRow.forEach(id=>{ pos[id]={x:sx, y:ROW_Y[2]}; sx+=step; });
+
+  // Inline "add relative" buttons, placed next to the existing members on each level.
+  const addBtns = [
+    {kind:"patAunt", x: pos[patGroup[0]].x - step,                 y:ROW_Y[1], label:"Add paternal aunt/uncle"},
+    {kind:"matAunt", x: pos[matGroup[matGroup.length-1]].x + step, y:ROW_Y[1], label:"Add maternal aunt/uncle"},
+    {kind:"sibling", x: pos[selfRow[0]].x - step,                  y:ROW_Y[2], label:"Add sibling"},
+  ];
+
+  // Compute bounds (shift so min x >=0), including the add buttons.
+  const allX = [...Object.values(pos).map(p=>p.x), ...addBtns.map(b=>b.x)];
+  const minX = Math.min(...allX, 0);
+  const shift = 20 - minX;
+  Object.values(pos).forEach(p=>p.x+=shift);
+  addBtns.forEach(b=>b.x+=shift);
+  const maxX = Math.max(...Object.values(pos).map(p=>p.x), ...addBtns.map(b=>b.x)) + NW + 20;
+  const width = Math.max(maxX, 700);
+  const height = ROW_Y[2]+NH+30;
+  svg.setAttribute("viewBox",`0 0 ${width} ${height}`);
+  svg.setAttribute("width", width);
+  svg.setAttribute("height", height);
+
+  // Build links
+  const links = [];
+  const mid=(a,b)=>({x:(pos[a].x+pos[b].x)/2+NW/2, y:pos[a].y});
+  // couple lines
+  const couple=(a,b)=>{ const y=pos[a].y+NH/2; links.push(`M ${pos[a].x+NW} ${y} H ${pos[b].x}`); };
+  couple("patGrandfather","patGrandmother");
+  couple("matGrandfather","matGrandmother");
+  couple("father","mother");
+
+  // children drop from couple midpoint
+  function childLink(childId, cA, cB){
+    const cm = { x:(pos[cA].x+pos[cB].x)/2+NW/2, y:(pos[cA].y+NH/2) };
+    const cx = pos[childId].x+NW/2, cy = pos[childId].y;
+    const midY = (cm.y + cy)/2;
+    links.push(`M ${cm.x} ${cm.y} V ${midY} H ${cx} V ${cy}`);
+  }
+  patGroup.forEach(id=> childLink(id,"patGrandfather","patGrandmother"));
+  matGroup.forEach(id=> childLink(id,"matGrandfather","matGrandmother"));
+  selfRow.forEach(id=> childLink(id,"father","mother"));
+
+  // Render
+  let html = "";
+  links.forEach(d=> html+=`<path class="link" d="${d}"/>`);
+  const order = [...gpRow, ...parentRow, ...selfRow];
+  order.forEach(id=>{
+    const p = state.people[id]; if(!p) return;
+    const P = pos[id]; if(!P) return;
+    const conds = detectConditions(p.conditions);
+    const on = conds.length>0;
+    const removable = /^(sibling|patAunt|matAunt)_/.test(id);
+    const roleLines = wrapText(p.role, 15);
+    let inner = "";
+    if(p.name){
+      // small uppercase role on top, the person's name as the main label
+      inner += roleLines.map((ln,i)=>`<text class="role" x="12" y="${15+i*11}">${escapeXml(ln)}</text>`).join("");
+      inner += `<text class="pname" x="12" y="${roleLines.length>1?46:41}">${escapeXml(clip(p.name,19))}</text>`;
+    }else{
+      // no name yet: the role IS the main label
+      const startY = roleLines.length>1 ? 27 : 34;
+      inner += roleLines.map((ln,i)=>`<text class="rolebig" x="12" y="${startY+i*15}">${escapeXml(ln)}</text>`).join("");
+    }
+    inner += on
+      ? `<text class="cond" x="12" y="63">${conds.length} condition${conds.length>1?'s':''}</text>`
+      : `<text class="tap" x="12" y="63">tap to add conditions</text>`;
+    html += `<g class="node ${on?'on':'empty'} ${state.sel===id?'sel':''}" data-id="${id}" transform="translate(${P.x},${P.y})">
+      <rect width="${NW}" height="${NH}"></rect>
+      ${inner}
+      ${removable?`<g class="rm" data-rm="${id}"><circle cx="${NW-15}" cy="15" r="9" fill="#3a2130" stroke="#6b3340"></circle><text x="${NW-15}" y="19" text-anchor="middle" fill="#ffb3b3" style="font-size:13px">×</text></g>`:``}
+    </g>`;
+  });
+  // Inline add-relative buttons
+  addBtns.forEach(b=>{
+    const lbl = wrapText(b.label, 13);
+    const startY = lbl.length>1 ? NH/2-4 : NH/2+4;
+    html += `<g class="addnode" data-add="${b.kind}" transform="translate(${b.x},${b.y})">
+      <rect width="${NW}" height="${NH}" rx="12" ry="12"></rect>
+      <text class="plus" x="16" y="${NH/2+7}">+</text>
+      ${lbl.map((ln,i)=>`<text x="38" y="${startY+i*14}">${escapeXml(ln)}</text>`).join("")}
+    </g>`;
+  });
+  svg.innerHTML = html;
+
+  // Node events
+  svg.querySelectorAll("g.node").forEach(g=>{
+    g.addEventListener("click",(e)=>{
+      const rm = e.target.closest(".rm");
+      if(rm){ e.stopPropagation(); removePerson(rm.getAttribute("data-rm")); return; }
+      openEditor(g.getAttribute("data-id"));
+    });
+  });
+  svg.querySelectorAll("g.addnode").forEach(g=>{
+    g.addEventListener("click",()=> addDynamic(g.getAttribute("data-add")));
+  });
+  updateGenerateCount();
+}
+
+function wrapText(text, maxChars){
+  const words = String(text).split(/\s+/);
+  const lines=[]; let cur="";
+  for(const w of words){
+    if(!cur) cur=w;
+    else if((cur+" "+w).length<=maxChars) cur+=" "+w;
+    else { lines.push(cur); cur=w; }
+  }
+  if(cur) lines.push(cur);
+  if(lines.length>2){ lines[1]=lines.slice(1).join(" "); lines.length=2; }
+  return lines;
+}
+
+function clip(s,n){ return s.length>n? s.slice(0,n-1)+"…" : s; }
+function escapeXml(s){ return (s||"").replace(/[<>&'"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;',"'":'&apos;','"':'&quot;'}[c])); }
+
+/* ============================================================
+   6. EDITOR DRAWER
+   ============================================================ */
+let currentId = null;
+function openEditor(id){
+  currentId = id; state.sel = id;
+  const p = state.people[id];
+  document.getElementById("drawerRole").textContent = p.role;
+  document.getElementById("drawerTitle").textContent = p.name || p.role;
+  document.getElementById("nameInput").value = p.name || "";
+  document.getElementById("condInput").value = p.conditions || "";
+  renderChips();
+  renderDetected(p.conditions);
+  document.getElementById("drawer").classList.add("open");
+  render();
+}
+function closeEditor(){
+  document.getElementById("drawer").classList.remove("open");
+  state.sel=null; currentId=null; render();
+}
+function renderChips(){
+  const box = document.getElementById("quickChips");
+  box.innerHTML = QUICK.map(q=>`<span class="chip" data-q="${escapeXml(q)}">+ ${escapeXml(q)}</span>`).join("");
+  box.querySelectorAll(".chip").forEach(c=>c.addEventListener("click",()=>{
+    const ta = document.getElementById("condInput");
+    const val = c.getAttribute("data-q");
+    ta.value = ta.value.trim() ? ta.value.replace(/\s*$/,"")+", "+val : val;
+    renderDetected(ta.value);
+  }));
+}
+function renderDetected(text){
+  const box = document.getElementById("detectedTags");
+  const found = detectConditions(text);
+  if(!found.length){ box.innerHTML = `<span class="none">Nothing recognized yet.</span>`; return; }
+  box.innerHTML = found.map(k=>`<span class="tag">${escapeXml(KB[k].name)}</span>`).join("");
+}
+
+document.getElementById("condInput").addEventListener("input",e=>renderDetected(e.target.value));
+document.getElementById("drawerClose").addEventListener("click",closeEditor);
+document.getElementById("drawerSave").addEventListener("click",()=>{
+  if(!currentId) return;
+  state.people[currentId].name = document.getElementById("nameInput").value.trim();
+  state.people[currentId].conditions = document.getElementById("condInput").value.trim();
+  saveState(); closeEditor();
+});
+document.getElementById("drawerClear").addEventListener("click",()=>{
+  if(!currentId) return;
+  state.people[currentId].conditions=""; document.getElementById("condInput").value=""; renderDetected("");
+  saveState(); render();
+});
+
+/* ============================================================
+   7. REPORT
+   ============================================================ */
+function generate(){
+  const agg = aggregate();
+  const keys = Object.keys(agg);
+  const body = document.getElementById("reportBody");
+  const foot = document.getElementById("reportFoot");
+
+  if(!keys.length){
+    body.innerHTML = `<div class="empty-state">No conditions entered yet.<br/>Click relatives in the tree and add the conditions they had, then generate your plan.</div>`;
+    openReport(); return;
+  }
+  // sort by level then score
+  const rank = {high:0,mod:1,low:2};
+  keys.sort((a,b)=> rank[levelOf(agg[a])]-rank[levelOf(agg[b])] || agg[b].score-agg[a].score);
+
+  // Priorities grid
+  let prio = `<div class="disclaimer">⚕️ <b>Educational tool — not medical advice.</b> These suggestions are based on published prevention guidelines and your entered family history. They are not a diagnosis and don't replace your clinician. A strong family history of any condition is a reason to talk to a doctor and consider genetic counseling.</div>`;
+  prio += `<h3 style="margin:18px 0 4px">Your risk snapshot</h3>`;
+  prio += `<div class="prio">`;
+  keys.forEach(k=>{
+    const a = agg[k]; const lv = levelOf(a);
+    const whoList = a.people.map(pp=> pp.name? `${pp.name} (${pp.role.toLowerCase()})` : pp.role.toLowerCase());
+    prio += `<div class="card">
+      <span class="lvl ${lv}">${LEVEL_LABEL[lv]}</span>
+      <h4 style="margin-top:8px">${escapeXml(KB[k].name)}</h4>
+      <div class="who">${a.people.length} relative${a.people.length>1?'s':''}: ${escapeXml(whoList.join(", "))}</div>
+    </div>`;
+  });
+  prio += `</div>`;
+
+  // Detailed rec blocks
+  let blocks = `<h3 style="margin:26px 0 4px">Tailored recommendations</h3>
+    <div style="color:var(--muted);font-size:12.5px;margin-bottom:6px">Click a card to expand. Areas with more/closer affected relatives appear first.</div>`;
+  keys.forEach((k,i)=>{
+    const a = agg[k]; const lv = levelOf(a); const kb = KB[k];
+    let cats = "";
+    ["diet","exercise","sleep","screening","lifestyle"].forEach(cat=>{
+      if(!kb.rec[cat]) return;
+      cats += `<div class="catRow"><div class="cat"><span class="ic">${CAT_META[cat].ic}</span>${CAT_META[cat].label}</div>
+        <ul>${kb.rec[cat].map(li=>`<li>${escapeXml(li)}</li>`).join("")}</ul></div>`;
+    });
+    blocks += `<div class="recBlock ${i===0?'open':''}">
+      <div class="rb-h">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="caret">▶</span>
+          <div>
+            <h3>${escapeXml(kb.name)} <span class="lvl ${lv}" style="margin-left:6px">${LEVEL_LABEL[lv]}</span></h3>
+            <div class="src">Guideline basis: ${escapeXml(kb.source)}</div>
+          </div>
+        </div>
+      </div>
+      <div class="rb-b">${cats}</div>
+    </div>`;
+  });
+
+  // Universal baseline
+  blocks += `<div class="recBlock">
+    <div class="rb-h"><div style="display:flex;align-items:center;gap:10px"><span class="caret">▶</span>
+      <div><h3>Everyone: foundational habits</h3><div class="src">Cross-guideline consensus</div></div></div></div>
+    <div class="rb-b">
+      <div class="catRow"><div class="cat"><span class="ic">🥗</span>Diet</div><ul><li>Build meals around vegetables, fruits, whole grains, legumes, nuts, and fish; limit ultra-processed food, added sugar, and excess sodium.</li></ul></div>
+      <div class="catRow"><div class="cat"><span class="ic">🏃</span>Exercise</div><ul><li>≥150 min/week moderate aerobic activity + 2 days of strength training; reduce prolonged sitting.</li></ul></div>
+      <div class="catRow"><div class="cat"><span class="ic">😴</span>Sleep</div><ul><li>7–9 hours on a consistent schedule; get snoring/daytime sleepiness evaluated for sleep apnea.</li></ul></div>
+      <div class="catRow"><div class="cat"><span class="ic">🩺</span>Screening</div><ul><li>Keep a written family history and share it with your clinician; know your blood pressure, cholesterol, glucose, and BMI.</li></ul></div>
+      <div class="catRow"><div class="cat"><span class="ic">🌿</span>Lifestyle</div><ul><li>Don't use tobacco, limit alcohol, protect skin from UV, and manage stress.</li></ul></div>
+    </div>
+  </div>`;
+
+  body.innerHTML = prio + blocks;
+  body.querySelectorAll(".recBlock .rb-h").forEach(h=>h.addEventListener("click",()=>h.parentElement.classList.toggle("open")));
+
+  const sources = [...new Set(keys.map(k=>KB[k].source))];
+  foot.innerHTML = `<b>Sources referenced:</b> ${sources.map(escapeXml).join(" · ")}.<br/>
+    This tool paraphrases publicly available guideline recommendations for education. Always confirm specifics (screening ages, thresholds, medications) with a licensed clinician, who can weigh your personal history, labs, and the exact diagnoses and ages in your family.`;
+  openReport();
+}
+function openReport(){ document.getElementById("overlay").classList.add("open"); const r=document.getElementById("report"); r.style.display="block"; }
+function closeReport(){ document.getElementById("overlay").classList.remove("open"); document.getElementById("report").style.display="none"; }
+
+/* ============================================================
+   8. WIRING
+   ============================================================ */
+function updateGenerateCount(){
+  let n=0;
+  for(const id in state.people){ if(id!=="self" && detectConditions(state.people[id].conditions).length) n++; }
+  const btn = document.getElementById("btnGenerate");
+  btn.textContent = n? `Generate recommendations (${n} relative${n>1?'s':''}) →` : "Generate recommendations →";
+}
+document.getElementById("btnGenerate").addEventListener("click",generate);
+document.getElementById("reportClose").addEventListener("click",closeReport);
+document.getElementById("overlay").addEventListener("click",closeReport);
+document.getElementById("printReport").addEventListener("click",()=>window.print());
+document.getElementById("btnReset").addEventListener("click",()=>{
+  if(confirm("Clear the whole family tree and start over?")){ state=blankState(); saveState(); render(); }
+});
+document.getElementById("btnLoadSample").addEventListener("click",()=>{
+  state = blankState();
+  state.people.patGrandfather.conditions="heart attack at 60, high blood pressure";
+  state.people.patGrandmother.conditions="type 2 diabetes";
+  state.people.matGrandfather.conditions="stroke, high cholesterol";
+  state.people.matGrandmother.conditions="colon cancer at 68";
+  state.people.father.conditions="high blood pressure, high cholesterol";
+  state.people.mother.conditions="breast cancer at 52";
+  addDynamic("sibling"); // creates + opens; but we want to set conditions
+  // find the sibling just added
+  const sib = state.siblings[state.siblings.length-1];
+  if(sib){ state.people[sib].role="Sibling"; state.people[sib].name="Sister"; state.people[sib].conditions="prediabetes"; }
+  closeEditor();
+  saveState(); render();
+});
+
+window.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeEditor(); closeReport(); } });
+
+render();
+</script>
+</body>
+</html>
