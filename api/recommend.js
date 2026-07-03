@@ -30,6 +30,7 @@ OUTPUT REQUIREMENTS:
 - DEDUPLICATE aggressively: if multiple conditions call for a similar action (e.g. "≥150 min/week of moderate aerobic activity"), state it ONCE as a single recommendation and attribute it to all the relevant conditions.
 - For EACH recommendation, populate "conditions" with the family condition name(s) that recommendation is driven by (list all that apply, using the exact condition names given in the input). Use general/foundational items (empty conditions array) sparingly and only when broadly protective.
 - Weight proximity and prevalence: give more prominent, specific guidance for conditions affecting closer relatives (parents/siblings) or multiple relatives. "screening" should include personalized items such as starting screening earlier than the general population, more frequent screening, or referral for genetic counseling when the family history warrants it.
+- AGE OF ONSET: when a relative's age at diagnosis is given, use it. Early onset is a strong hereditary signal — for example, any cancer before ~50, coronary/cardiovascular disease before ~55 in men or ~65 in women, or early-onset dementia. For early-onset conditions, explicitly recommend starting the relevant screening EARLIER than the general population (a common rule is 10 years before the relative's diagnosis age, or by a specific age) and consider referral for genetic counseling/testing. You may reference the specific onset age. Ages of onset are only provided for some relatives; do not assume anything when they are absent.
 - Keep each recommendation to one clear, actionable sentence. Aim for roughly 2-5 items per category (fewer if the history is sparse). Be specific and practical (numbers, targets) but do not fabricate exact screening ages you are unsure of — where specifics depend on the individual, say to discuss timing with a clinician.
 - This is educational content, not a diagnosis or medical advice. Do not address the user by name.
 - "sources" is a concise list of the guideline bodies you drew on (e.g. ["USPSTF","ACC/AHA","ADA","ACS/NCCN"]).
@@ -98,13 +99,16 @@ export default async function handler(req, res) {
       ? c.relatives.slice(0, 20).map(r => ({
           role: String(r?.role || "").slice(0, 40),
           degree: Number(r?.degree) || 2,
+          onsetAge: Number.isInteger(r?.onsetAge) ? r.onsetAge : null,
         }))
       : [],
   })).filter(c => c.name);
 
   const levelWord = { high: "higher priority", mod: "moderate", low: "worth noting" };
   const lines = clean.map(c => {
-    const rel = c.relatives.map(r => `${r.role}${r.degree === 1 ? " [first-degree]" : ""}`).join(", ");
+    const rel = c.relatives.map(r =>
+      `${r.role}${r.degree === 1 ? " [first-degree]" : ""}${Number.isInteger(r.onsetAge) ? ` (diagnosed at age ${r.onsetAge})` : ""}`
+    ).join(", ");
     return `- ${c.name} (${levelWord[c.level]}): affected relatives — ${rel || "unspecified"}`;
   }).join("\n");
 

@@ -138,11 +138,13 @@
       <div style="margin-top:20px;padding:14px;border:1px dashed #D9CFBB;border-radius:4px;background:var(--highlight)">
         <div class="mono" style="font-size:9px;letter-spacing:.8px;color:var(--muted);margin-bottom:8px">IDENTIFIED CONDITIONS</div>
         <div id="dw_recognized" style="display:flex;flex-wrap:wrap;gap:5px"></div>
+        <div id="dw_onsethint" style="font-size:11.5px;color:var(--muted2);margin-top:11px;line-height:1.5;display:none">Optional — add the age each was diagnosed if you know it. Early onset raises risk and can move screening earlier; leave blank if unknown.</div>
       </div>
 
-      <div style="display:flex;gap:10px;margin-top:22px">
+      <div style="display:flex;gap:12px;margin-top:22px;align-items:center">
         <span class="mono btn-primary" id="dw_save" data-act="save" style="font-size:11.5px;padding:10px 18px;border-radius:2px">Save</span>
-        <span class="mono link-accent" data-act="clear" style="font-size:11.5px;color:var(--muted);padding:10px 14px">Clear</span>
+        <span class="mono link-mono" data-act="closeEditor" style="font-size:11.5px">Done</span>
+        <span class="mono link-accent" data-act="clear" style="font-size:11.5px;color:var(--muted);padding:10px 14px;margin-left:auto">Clear</span>
       </div>
     </div>
   </aside>
@@ -216,6 +218,8 @@ function condObjs(p){
 function hasConds(p){ return condObjs(p).length>0; }
 function shorten(x){ x=String(x); return x.length>22 ? x.slice(0,21)+"…" : x; }
 
+// Diagnosis before this age counts as "early onset" — a strong hereditary signal.
+const EARLY_ONSET = 50;
 // Aggregate identical conditions across relatives, keyed by canonical name.
 function aggregate(){
   const agg={}; const w=d=>d===1?3:1;
@@ -223,12 +227,21 @@ function aggregate(){
     const seen=new Set();
     for(const c of condObjs(p)){ const name=(c.name||"").trim(); const key=name.toLowerCase();
       if(!name||seen.has(key)) continue; seen.add(key);
-      if(!agg[name]) agg[name]={name,score:0,fd:0,people:[]};
+      const onset = Number.isInteger(c.onsetAge) ? c.onsetAge : null;
+      if(!agg[name]) agg[name]={name,score:0,fd:0,early:0,minOnset:null,people:[]};
       agg[name].score+=w(p.degree); if(p.degree===1) agg[name].fd++;
-      agg[name].people.push({role:p.role,name:p.name,degree:p.degree}); } }
+      if(onset!=null && onset<EARLY_ONSET) agg[name].early++;
+      if(onset!=null) agg[name].minOnset = agg[name].minOnset==null ? onset : Math.min(agg[name].minOnset, onset);
+      agg[name].people.push({role:p.role,name:p.name,degree:p.degree,onsetAge:onset}); } }
   return agg;
 }
-function levelOf(a){ if(a.fd>=2||a.score>=6) return "high"; if(a.fd>=1||a.score>=2) return "mod"; return "low"; }
+// Early onset raises the priority: a first-degree early-onset diagnosis is high;
+// any early-onset diagnosis is at least moderate.
+function levelOf(a){
+  if(a.fd>=2 || a.score>=6 || (a.fd>=1 && a.early>=1)) return "high";
+  if(a.fd>=1 || a.score>=2 || a.early>=1) return "mod";
+  return "low";
+}
 
 /* ---------- mutations ---------- */
 function addRel(kind){
@@ -268,13 +281,22 @@ function closeEditor(){
   document.getElementById("scrim").classList.remove("open");
   selId=null; renderStage();
 }
+// Carry over any manually-entered onset ages when re-analysing the text.
+function mergeOnset(list, prev){
+  return list.map(c=>{
+    if(Number.isInteger(c.onsetAge)) return c;
+    const old=(prev||[]).find(o=> (o.name||"").toLowerCase() === String(c.name||"").toLowerCase());
+    return old && Number.isInteger(old.onsetAge) ? {...c, onsetAge:old.onsetAge} : {...c, onsetAge:c.onsetAge??null};
+  });
+}
 async function saveEditor(){
   const id=selId; if(!id) return;
   const p=s.people[id];
+  const prev = Array.isArray(p.extracted) ? p.extracted : [];
   p.name=draft.name.trim(); p.conditions=draft.cond.trim();
   if(sexIsEditable(id)) p.sex=draft.sex;
 
-  if(!p.conditions){ p.extracted=[]; save(); closeEditor(); updateMeta(); renderStage(); return; }
+  if(!p.conditions){ p.extracted=[]; save(); updateMeta(); renderStage(); renderIdentified(); return; }
 
   const btn=document.getElementById("dw_save");
   if(btn){ btn.textContent="Analyzing…"; btn.style.opacity=".55"; btn.style.pointerEvents="none"; }
@@ -282,14 +304,15 @@ async function saveEditor(){
     const resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:p.conditions})});
     if(!resp.ok) throw new Error("HTTP "+resp.status);
     const data=await resp.json();
-    p.extracted = Array.isArray(data.conditions) ? data.conditions : [];
+    p.extracted = mergeOnset(Array.isArray(data.conditions)?data.conditions:[], prev);
   }catch(err){
     // Graceful fallback: local keyword matcher keeps the app usable offline.
-    p.extracted = detect(p.conditions).map(k=>({name:KB[k].name, onsetAge:null}));
+    p.extracted = mergeOnset(detect(p.conditions).map(k=>({name:KB[k].name, onsetAge:null})), prev);
   }finally{
     if(btn){ btn.textContent="Save"; btn.style.opacity=""; btn.style.pointerEvents=""; }
   }
-  save(); closeEditor(); updateMeta(); renderStage();
+  // Keep the drawer open so the user can add ages of onset, then click Done.
+  save(); updateMeta(); renderStage(); renderIdentified();
 }
 function clearPerson(){ draft.cond=""; document.getElementById("f_cond").value=""; condHint(); }
 
@@ -302,16 +325,24 @@ function renderSexSeg(){
 function condHint(){
   document.getElementById("dw_recognized").innerHTML =
     `<span style="font-size:12px;color:var(--faint)">Conditions are identified with AI when you save.</span>`;
+  const hint=document.getElementById("dw_onsethint"); if(hint) hint.style.display="none";
 }
 function renderIdentified(){
   const box=document.getElementById("dw_recognized");
+  const hint=document.getElementById("dw_onsethint");
   const p = selId ? s.people[selId] : null;
   const ex = p && Array.isArray(p.extracted) ? p.extracted : [];
   if(!ex.length){ condHint(); return; }
-  box.innerHTML = ex.map(c=>{
-    const onset = Number.isInteger(c.onsetAge) ? ` · ${c.onsetAge}` : "";
-    return `<span style="font-size:11.5px;background:var(--ink);color:var(--paper);padding:3px 9px;border-radius:999px">${esc(c.name)}${onset}</span>`;
+  box.innerHTML = ex.map((c,i)=>{
+    const age = Number.isInteger(c.onsetAge) ? c.onsetAge : "";
+    return `<div style="display:flex;align-items:center;gap:8px;width:100%;margin:3px 0">
+      <span style="flex:1;font-size:12px;background:var(--ink);color:var(--paper);padding:5px 11px;border-radius:999px">${esc(c.name)}</span>
+      <input class="onset-input" data-idx="${i}" type="number" min="0" max="120" inputmode="numeric" placeholder="age" value="${age}"
+        title="Age at diagnosis (optional)" aria-label="Age ${esc(c.name)} was diagnosed"
+        style="width:64px;background:var(--input);border:1px solid var(--hairline);color:var(--ink);border-radius:6px;padding:6px 8px;font-size:12.5px;text-align:center" />
+    </div>`;
   }).join("");
+  if(hint) hint.style.display="block";
 }
 
 /* ---------- layout & connectors ---------- */
@@ -448,10 +479,12 @@ async function generate(){
   const rank={high:0,mod:1,low:2};
   keys.sort((a,b)=> rank[levelOf(agg[a])]-rank[levelOf(agg[b])] || agg[b].score-agg[a].score);
   const priorities=keys.map(k=>{ const a=agg[k];
-    const who=a.people.map(pp=> pp.name ? pp.name+" ("+pp.role.toLowerCase()+")" : pp.role.toLowerCase());
+    const who=a.people.map(pp=>{ const base = pp.name ? pp.name+" ("+pp.role.toLowerCase()+")" : pp.role.toLowerCase();
+      return Number.isInteger(pp.onsetAge) ? base+", diagnosed at "+pp.onsetAge : base; });
     return {name:a.name, lvl:levelOf(a),
       who:a.people.length+" relative"+(a.people.length>1?"s":"")+": "+who.join(", "),
-      relatives:a.people.map(pp=>({role:pp.role, degree:pp.degree}))}; });
+      early:a.early>0, minOnset:a.minOnset,
+      relatives:a.people.map(pp=>({role:pp.role, degree:pp.degree, onsetAge:pp.onsetAge}))}; });
   rep={empty:false, priorities, plan:null, loading:true, error:null};
   reportOpen=true; renderReport();
   try{
@@ -480,9 +513,10 @@ function renderReport(){
 
     body+=`<div class="mono" style="font-size:9.5px;letter-spacing:1px;color:var(--muted2);margin:26px 0 12px">RISK SNAPSHOT</div><div>`;
     rep.priorities.forEach(p=>{
+      const earlyTag = p.early ? `<span class="mono" style="font-size:9.5px;letter-spacing:.4px;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:2px 7px;margin-top:6px;display:inline-block">EARLY ONSET${Number.isInteger(p.minOnset)?" · AGE "+p.minOnset:""}</span>` : "";
       body+=`<div style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:12px 0;border-top:1px solid #E8E2D5">
         <div style="flex:1"><div class="display" style="font-size:18px;color:var(--ink)">${esc(p.name)}</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:3px">${esc(p.who)}</div></div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px">${esc(p.who)}</div>${earlyTag}</div>
         <span style="${lvlStyle(p.lvl)}">${(LVL[p.lvl]||"").toUpperCase()}</span></div>`;
     });
     body+=`</div>`;
@@ -571,6 +605,15 @@ function esc(x){ return String(x==null?"":x).replace(/[<>&"']/g,c=>({'<':'&lt;',
 document.getElementById("app").addEventListener("click", handleAct);
 document.getElementById("f_name").addEventListener("input", e=>{ draft.name=e.target.value; });
 document.getElementById("f_cond").addEventListener("input", e=>{ draft.cond=e.target.value; condHint(); });
+document.getElementById("dw_recognized").addEventListener("input", e=>{
+  const inp=e.target.closest(".onset-input"); if(!inp || !selId) return;
+  const p=s.people[selId]; const idx=Number(inp.getAttribute("data-idx"));
+  if(!p || !Array.isArray(p.extracted) || !p.extracted[idx]) return;
+  const v=inp.value.trim();
+  const n=v==="" ? null : Math.max(0, Math.min(120, parseInt(v,10)));
+  p.extracted[idx].onsetAge = Number.isInteger(n) ? n : null;
+  save();
+});
 window.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeEditor(); if(reportOpen) closeReport(); } });
 
 renderStage();
