@@ -177,7 +177,8 @@ const KB = {
   cancer_generic:{name:"Cancer (unspecified)",short:"Cancer",source:"American Cancer Society general prevention guidance",keywords:["cancer","tumor","malignancy","leukemia","lymphoma","oncology"],rec:{diet:["Plant-forward diet; limit processed and red meat, alcohol, added sugar."],exercise:["Stay active (≥150 min/week) and limit sedentary time."],sleep:["Maintain regular, adequate sleep."],screening:["Stay up to date on age-appropriate screenings; tell your clinician the specific cancers and ages in your family."],lifestyle:["Do not use tobacco, protect skin from UV, maintain a healthy weight."]}}
 };
 const QUICK = ["Heart attack","High blood pressure","High cholesterol","Type 2 diabetes","Stroke","Breast cancer","Colon cancer","Prostate cancer","Osteoporosis","Alzheimer's","Melanoma"];
-const CATS = [["diet","Diet"],["exercise","Exercise"],["sleep","Sleep"],["screening","Screening & clinical"],["lifestyle","Lifestyle"]];
+// Display order of the recommendation sections (screening first).
+const CATS = [["screening","Screening & clinical"],["diet","Diet"],["exercise","Exercise"],["sleep","Sleep"],["lifestyle","Lifestyle"]];
 const LVL = {high:"Higher priority", mod:"Moderate priority", low:"Lower priority"};
 
 /* ---------- geometry (fixed: airy) ---------- */
