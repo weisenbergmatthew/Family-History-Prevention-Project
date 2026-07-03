@@ -178,7 +178,7 @@ const KB = {
 };
 const QUICK = ["Heart attack","High blood pressure","High cholesterol","Type 2 diabetes","Stroke","Breast cancer","Colon cancer","Prostate cancer","Osteoporosis","Alzheimer's","Melanoma"];
 const CATS = [["diet","Diet"],["exercise","Exercise"],["sleep","Sleep"],["screening","Screening & clinical"],["lifestyle","Lifestyle"]];
-const LVL = {high:"Higher priority", mod:"Moderate", low:"Worth noting"};
+const LVL = {high:"Higher priority", mod:"Moderate priority", low:"Lower priority"};
 
 /* ---------- geometry (fixed: airy) ---------- */
 const G = {CW:146, STEP:186, Y0:34, Y1:230, Y2:426, BUS1:184, BUS2:378, S:56};
@@ -511,7 +511,15 @@ function renderReport(){
   }else{
     body+=`<div style="background:var(--highlight);border:1px solid #E7D9BE;border-radius:4px;padding:13px 15px;font-size:12.5px;color:#7A6A45;margin:18px 0">Educational tool — not medical advice. Conditions are identified with AI and matched to published prevention guidelines (USPSTF and the leading specialty bodies). A strong family history is a reason to talk to a clinician and consider genetic counseling.</div>`;
 
-    body+=`<div class="mono" style="font-size:9.5px;letter-spacing:1px;color:var(--muted2);margin:26px 0 12px">RISK SNAPSHOT</div><div>`;
+    body+=`<div class="mono" style="font-size:9.5px;letter-spacing:1px;color:var(--muted2);margin:26px 0 10px">RISK SNAPSHOT</div>`;
+    const legendItem=(lvl,desc)=>`<div style="display:flex;align-items:baseline;gap:8px;margin:4px 0"><span style="${lvlStyle(lvl)}">${(LVL[lvl]||"").toUpperCase()}</span><span style="font-size:11.5px;color:var(--muted)">${desc}</span></div>`;
+    body+=`<div style="background:var(--input);border:1px solid var(--hairline);border-radius:5px;padding:11px 14px;margin-bottom:14px">
+      <div class="mono" style="font-size:8.5px;letter-spacing:.8px;color:var(--muted2);margin-bottom:7px">HOW PRIORITY IS SET — BY CLOSENESS, NUMBER, AND DIAGNOSIS AGE OF AFFECTED RELATIVES</div>
+      ${legendItem('high','Two or more close relatives, or a parent/sibling diagnosed young')}
+      ${legendItem('mod','One parent or sibling, or two more-distant relatives')}
+      ${legendItem('low','A single more-distant relative (grandparent, aunt, uncle)')}
+      <div style="font-size:11px;color:var(--muted2);margin-top:8px;line-height:1.5">A red <b style="color:var(--accent)">EARLY ONSET</b> badge marks a diagnosis before age 50 — it raises the priority and prompts earlier screening.</div>
+    </div><div>`;
     rep.priorities.forEach(p=>{
       const earlyTag = p.early ? `<span class="mono" style="font-size:9.5px;letter-spacing:.4px;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:2px 7px;margin-top:6px;display:inline-block">EARLY ONSET${Number.isInteger(p.minOnset)?" · AGE "+p.minOnset:""}</span>` : "";
       body+=`<div style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:12px 0;border-top:1px solid #E8E2D5">
