@@ -69,22 +69,84 @@
   @media (prefers-reduced-motion: reduce){
     #drawer,#scrim,.node-shape,.add-marker,.btn-primary,.link-mono{transition:none !important}
   }
+  /* ---------- landing + plan views ---------- */
+  #view-landing, #view-plan{display:none}
+  .lwrap{max-width:1100px; margin:0 auto; padding:0 34px}
+  .cta{display:inline-flex; align-items:center; gap:9px; background:var(--ink); color:#fff; font-family:var(--mono); font-size:12.5px; letter-spacing:.3px; padding:14px 22px; border-radius:2px; cursor:pointer; transition:.15s; border:none; white-space:nowrap}
+  .cta:hover{background:var(--accent)}
+  .eyebrow{font-family:var(--mono); font-size:9.5px; letter-spacing:1.6px; color:var(--muted); text-transform:uppercase}
+  .step{border-top:1px solid var(--hairline); padding:22px 0}
+  .step .n{font-family:var(--mono); font-size:11px; letter-spacing:1px; color:var(--accent)}
+  .step h3{font-family:var(--display); font-size:20px; color:var(--ink); margin:8px 0 6px; font-weight:500}
+  .step p{margin:0; font-size:14.5px; color:var(--ink-soft); max-width:640px; line-height:1.6}
+  .agebox{background:var(--surface); border:1px solid var(--hairline); border-radius:6px; padding:24px 26px}
+  .plan-head{position:sticky; top:0; z-index:5; background:var(--surface); border-bottom:1px solid var(--hairline)}
+
   @media print{
-    #scrim,#drawer{display:none !important}
-    body *{visibility:hidden}
-    #reportRoot,#reportRoot *{visibility:visible}
-    #reportRoot{position:absolute; inset:0}
-    #reportPanel{position:static !important; max-height:none !important; box-shadow:none !important; border-radius:0 !important}
-    #reportScrim{display:none !important}
+    #scrim, #drawer, .plan-head{display:none !important}
+    #view-plan{display:block !important}
+    #planBody{padding-top:0 !important}
   }
 </style>
 </head>
 <body>
-<div id="app">
+
+<!-- ================= LANDING VIEW ================= -->
+<div id="view-landing" style="display:block">
+  <header class="lwrap" style="display:flex;align-items:center;justify-content:space-between;padding-top:26px;padding-bottom:18px">
+    <div>
+      <div class="display" style="font-size:22px;font-weight:500;color:var(--ink);line-height:1">Family Health Tree</div>
+      <div class="eyebrow" style="margin-top:8px">Hereditary risk&nbsp;&nbsp;→&nbsp;&nbsp;Prevention</div>
+    </div>
+    <span class="mono link-mono" data-act="start" style="font-size:11px">Start&nbsp;&nbsp;→</span>
+  </header>
+
+  <section class="lwrap" style="max-width:840px;padding-top:52px;padding-bottom:38px">
+    <div class="eyebrow">A family history you'll actually use</div>
+    <h1 class="display" style="font-size:44px;line-height:1.12;font-weight:500;color:var(--ink);margin:16px 0 0;text-wrap:balance">The strongest early warning about your health is sitting in your family's medical history.</h1>
+    <p style="font-size:17px;line-height:1.6;color:var(--ink-soft);max-width:660px;margin:20px 0 0">Most people have never written it down. This tool walks you through gathering it — then shows which conditions your history points to most strongly, and turns that into a concise, guideline-based plan to help prevent them.</p>
+    <div style="margin-top:30px"><button class="cta" data-act="start">Build your family health tree&nbsp;&nbsp;→</button></div>
+  </section>
+
+  <section class="lwrap" style="max-width:840px;padding-bottom:14px">
+    <div class="eyebrow" style="margin-bottom:2px">How it works</div>
+    <div class="step">
+      <div class="n">01 — GATHER</div>
+      <h3>Map your family and what they were diagnosed with</h3>
+      <p>Add your parents, siblings, grandparents, and aunts and uncles, and record each person's conditions in plain language. It's the nudge to finally collect the history that predicts so much of your own risk.</p>
+    </div>
+    <div class="step">
+      <div class="n">02 — SEE THE GENETIC SIGNAL</div>
+      <h3>Find the conditions most likely to be inherited</h3>
+      <p>Each condition is flagged by how strongly your history points to it — weighted by how closely related the affected relatives are, how many there are, and how young they were diagnosed. The clearer the pattern, the more likely genetics are at play.</p>
+    </div>
+    <div class="step">
+      <div class="n">03 — GET A PREVENTION PLAN</div>
+      <h3>Turn it into specific things you can do</h3>
+      <p>One concise, de-duplicated plan across screening, diet, exercise, sleep, and lifestyle — grounded in current guidelines from the USPSTF and the leading specialty bodies, and tailored to the conditions in your family.</p>
+    </div>
+  </section>
+
+  <section class="lwrap" style="max-width:840px;padding-top:22px;padding-bottom:22px">
+    <div class="agebox">
+      <div class="eyebrow" style="color:var(--accent)">Why we ask for ages</div>
+      <h3 class="display" style="font-size:20px;font-weight:500;color:var(--ink);margin:11px 0 8px">Add the age each relative was diagnosed, if you can</h3>
+      <p style="margin:0;font-size:14.5px;line-height:1.65;color:var(--ink-soft)">It's optional, but it's one of the most useful things you can add — because it helps separate <b>genetic</b> risk from <b>environmental</b> risk. A disease that strikes young — a heart attack at 50, colon cancer at 45, breast cancer in someone's early 40s — is far more likely to be driven by inherited genes. The same disease appearing late in life is more often the result of lifestyle and environment built up over decades. So an early diagnosis raises a condition's priority here and pulls the recommended screening earlier. When you don't know an age, just leave it blank.</p>
+    </div>
+  </section>
+
+  <section class="lwrap" style="max-width:840px;padding-top:8px;padding-bottom:70px">
+    <button class="cta" data-act="start">Start your family health tree&nbsp;&nbsp;→</button>
+    <p class="mono" style="font-size:10.5px;line-height:1.7;color:var(--muted2);margin-top:26px;max-width:660px">Educational tool — not medical advice. It does not diagnose and does not replace a clinician. Everything you enter stays in your browser. A strong family history is a reason to talk to a doctor and consider genetic counseling.</p>
+  </section>
+</div>
+
+<!-- ================= TREE VIEW ================= -->
+<div id="app" style="display:none">
 
   <!-- HEADER -->
   <header class="shell" style="display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;padding-top:26px;padding-bottom:18px">
-    <div>
+    <div data-act="tolanding" style="cursor:pointer" title="About this tool">
       <div class="display" style="font-size:25px;font-weight:500;color:var(--ink);line-height:1;letter-spacing:.2px">Family Health Tree</div>
       <div class="mono" style="font-size:9.5px;letter-spacing:1.4px;color:var(--muted);margin-top:9px">HEREDITARY RISK&nbsp;&nbsp;→&nbsp;&nbsp;PREVENTION</div>
     </div>
@@ -149,9 +211,24 @@
     </div>
   </aside>
 
-  <!-- REPORT (built on demand) -->
-  <div id="reportRoot"></div>
+</div>
+<!-- /#app -->
 
+<!-- ================= PLAN (REPORT) VIEW ================= -->
+<div id="view-plan">
+  <div class="plan-head">
+    <div class="lwrap" style="display:flex;align-items:center;justify-content:space-between;padding-top:20px;padding-bottom:18px">
+      <div>
+        <div class="eyebrow">Personalized plan</div>
+        <div class="display" style="font-size:24px;color:var(--ink);margin-top:4px">Your prevention plan</div>
+      </div>
+      <div style="display:flex;gap:18px;align-items:center">
+        <span class="mono link-mono" data-act="totree" style="font-size:11px">←&nbsp;&nbsp;Family tree</span>
+        <span class="mono link-mono" data-act="print" style="font-size:11px">Print / PDF</span>
+      </div>
+    </div>
+  </div>
+  <div class="lwrap" id="planBody" style="max-width:880px;padding-top:8px;padding-bottom:64px"></div>
 </div>
 
 <script>
@@ -198,7 +275,7 @@ function load(){ try{ const r=localStorage.getItem("fht_v2"); if(r){ const v=JSO
 function save(){ try{ localStorage.setItem("fht_v2", JSON.stringify(s)); }catch(e){} }
 
 /* ---------- transient UI state ---------- */
-let selId=null, reportOpen=false, rep=null;
+let selId=null, rep=null, currentView="landing";
 const draft={name:"", cond:"", sex:"u"};
 
 /* ---------- parsing / aggregation (unchanged logic) ---------- */
@@ -476,7 +553,7 @@ function updateMeta(){
 /* ---------- report ---------- */
 async function generate(){
   const agg=aggregate(); const keys=Object.keys(agg);
-  if(!keys.length){ rep={empty:true}; reportOpen=true; renderReport(); return; }
+  if(!keys.length){ rep={empty:true}; renderPlan(); return; }
   const rank={high:0,mod:1,low:2};
   keys.sort((a,b)=> rank[levelOf(agg[a])]-rank[levelOf(agg[b])] || agg[b].score-agg[a].score);
   const priorities=keys.map(k=>{ const a=agg[k];
@@ -487,15 +564,15 @@ async function generate(){
       early:a.early>0, minOnset:a.minOnset,
       relatives:a.people.map(pp=>({role:pp.role, degree:pp.degree, onsetAge:pp.onsetAge}))}; });
   rep={empty:false, priorities, plan:null, loading:true, error:null};
-  reportOpen=true; renderReport();
+  renderPlan();
   try{
     const resp=await fetch("/api/recommend",{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({ conditions: priorities.map(p=>({name:p.name, level:p.lvl, relatives:p.relatives})) })});
     if(!resp.ok) throw new Error("HTTP "+resp.status);
     const data=await resp.json();
     if(!data || !data.categories) throw new Error("no plan returned");
-    rep.plan=data; rep.loading=false; renderReport();
-  }catch(err){ rep.loading=false; rep.error=String(err.message||err); renderReport(); }
+    rep.plan=data; rep.loading=false; renderPlan();
+  }catch(err){ rep.loading=false; rep.error=String(err.message||err); renderPlan(); }
 }
 function lvlStyle(lvl){
   const mono="font-family:var(--mono);font-size:10px;letter-spacing:.6px;white-space:nowrap;flex:0 0 auto;";
@@ -503,9 +580,9 @@ function lvlStyle(lvl){
   if(lvl==="mod")  return mono+"color:var(--ink);";
   return mono+"color:var(--muted);";
 }
-function renderReport(){
-  const root=document.getElementById("reportRoot");
-  if(!reportOpen){ root.innerHTML=""; return; }
+function renderPlan(){
+  const root=document.getElementById("planBody");
+  if(!root) return;
   let body="";
   if(rep.empty){
     body=`<div style="text-align:center;color:var(--muted);padding:50px 20px;font-size:14px">No conditions entered yet.<br/>Add what your relatives had, then generate your plan.</div>`;
@@ -554,23 +631,8 @@ function renderReport(){
     }
   }
 
-  root.innerHTML=`
-    <div id="reportScrim" data-act="closeReport" style="position:fixed;inset:0;background:rgba(26,23,18,.4);backdrop-filter:blur(3px);z-index:60"></div>
-    <div id="reportPanel" style="position:fixed;inset:5vh 0 0;margin:0 auto;width:min(880px,94vw);max-height:90vh;overflow:auto;background:var(--surface);border:1px solid var(--hairline);border-radius:6px 6px 0 0;box-shadow:0 -8px 40px rgba(26,23,18,.25);z-index:61">
-      <div style="position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--hairline);padding:22px 30px;display:flex;justify-content:space-between;align-items:center;z-index:2">
-        <div>
-          <div class="mono" style="font-size:9px;letter-spacing:1.4px;color:var(--muted2)">PERSONALIZED PLAN</div>
-          <div class="display" style="font-size:24px;color:var(--ink);margin-top:4px">Your prevention plan</div>
-        </div>
-        <div style="display:flex;gap:16px;align-items:center">
-          <span class="mono link-mono" data-act="print" style="font-size:11px">Print / PDF</span>
-          <span class="mono link-mono" data-act="closeReport" style="font-size:15px;border:none">✕</span>
-        </div>
-      </div>
-      <div style="padding:8px 30px 40px">${body}</div>
-    </div>`;
+  root.innerHTML=body;
 }
-function closeReport(){ reportOpen=false; renderReport(); }
 
 /* ---------- sample / reset ---------- */
 function loadSample(){
@@ -585,7 +647,7 @@ function loadSample(){
   const sib="sib_"+(s.seq++); s.people[sib]={id:sib,role:"Sibling",degree:1,sex:"f",name:"Sister",conditions:"prediabetes",extracted:[{name:"Prediabetes",onsetAge:null}]}; s.siblings.push(sib);
   selId=null; closeEditor(); save(); renderStage(); updateMeta();
 }
-function reset(){ if(confirm("Clear the whole family tree and start over?")){ s=blank(); selId=null; reportOpen=false; renderReport(); closeEditor(); save(); renderStage(); updateMeta(); } }
+function reset(){ if(confirm("Clear the whole family tree and start over?")){ s=blank(); selId=null; rep=null; closeEditor(); save(); renderStage(); updateMeta(); } }
 
 /* ---------- event delegation ---------- */
 function handleAct(e){
@@ -599,19 +661,39 @@ function handleAct(e){
     case "save": saveEditor(); break;
     case "clear": clearPerson(); break;
     case "closeEditor": closeEditor(); break;
-    case "generate": generate(); break;
+    case "generate": rep=null; navigate("plan"); break;
     case "example": loadSample(); break;
     case "reset": reset(); break;
     case "print": window.print(); break;
-    case "closeReport": closeReport(); break;
+    case "start": case "totree": navigate("tree"); break;
+    case "tolanding": navigate("landing"); break;
   }
 }
+
+/* ---------- view routing (landing / tree / plan) ---------- */
+function applyView(name){
+  document.getElementById("view-landing").style.display = name==="landing"?"block":"none";
+  document.getElementById("app").style.display          = name==="tree"?"block":"none";
+  document.getElementById("view-plan").style.display    = name==="plan"?"block":"none";
+  currentView=name; window.scrollTo(0,0);
+}
+function handleView(name){
+  if(name==="plan"){ applyView("plan"); if(rep) renderPlan(); else generate(); }
+  else applyView(name);
+}
+function hashToView(){ const h=(location.hash||"").replace(/^#/,""); return h==="tree"?"tree":h==="plan"?"plan":"landing"; }
+function navigate(name){
+  const hash = name==="landing" ? "#" : "#"+name;
+  if((location.hash||"#") !== hash) history.pushState({view:name}, "", hash);
+  handleView(name);
+}
+window.addEventListener("popstate", ()=> handleView(hashToView()));
 
 /* ---------- utils ---------- */
 function esc(x){ return String(x==null?"":x).replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c])); }
 
 /* ---------- init ---------- */
-document.getElementById("app").addEventListener("click", handleAct);
+document.addEventListener("click", handleAct);
 document.getElementById("f_name").addEventListener("input", e=>{ draft.name=e.target.value; });
 document.getElementById("f_cond").addEventListener("input", e=>{ draft.cond=e.target.value; condHint(); });
 document.getElementById("dw_recognized").addEventListener("input", e=>{
@@ -623,10 +705,17 @@ document.getElementById("dw_recognized").addEventListener("input", e=>{
   p.extracted[idx].onsetAge = Number.isInteger(n) ? n : null;
   save();
 });
-window.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeEditor(); if(reportOpen) closeReport(); } });
+window.addEventListener("keydown", e=>{ if(e.key==="Escape") closeEditor(); });
 
 renderStage();
 updateMeta();
+
+// Route to the correct view on load (supports reloads / deep links to #tree, #plan).
+(function initRouter(){
+  const v = hashToView();
+  history.replaceState({view:v}, "", v==="landing" ? "#" : "#"+v);
+  handleView(v);
+})();
 </script>
 </body>
 </html>
