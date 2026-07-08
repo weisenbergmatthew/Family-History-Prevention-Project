@@ -586,35 +586,44 @@ function renderPlan(){
     body+=`<div style="background:var(--highlight);border:1px solid #E7D9BE;border-radius:4px;padding:13px 15px;font-size:12.5px;color:#7A6A45;margin:18px 0">Educational tool — not medical advice. Conditions are identified with AI and matched to published prevention guidelines (USPSTF and the leading specialty bodies). A strong family history is a reason to talk to a clinician and consider genetic counseling.</div>`;
 
     body+=`<div class="mono" style="font-size:9.5px;letter-spacing:1px;color:var(--muted2);margin:26px 0 10px">RISK SNAPSHOT</div>`;
-    const legendItem=(lvl,desc)=>`<div style="display:flex;align-items:baseline;gap:8px;margin:4px 0"><span style="${lvlStyle(lvl)}">${(LVL[lvl]||"").toUpperCase()}</span><span style="font-size:11.5px;color:var(--muted)">${desc}</span></div>`;
-    body+=`<div style="background:var(--input);border:1px solid var(--hairline);border-radius:5px;padding:11px 14px;margin-bottom:14px">
-      <div class="mono" style="font-size:8.5px;letter-spacing:.8px;color:var(--muted2);margin-bottom:7px">HOW PRIORITY IS SET — BY CLOSENESS, NUMBER, AND DIAGNOSIS AGE OF AFFECTED RELATIVES</div>
-      ${legendItem('high','Two or more close relatives, or a parent/sibling diagnosed young')}
-      ${legendItem('mod','One parent or sibling, or two more-distant relatives')}
-      ${legendItem('low','A single more-distant relative (grandparent, aunt, uncle)')}
-      <div style="font-size:11px;color:var(--muted2);margin-top:8px;line-height:1.5">A red <b style="color:var(--accent)">EARLY ONSET</b> badge marks a diagnosis before age 50 — it raises the priority and prompts earlier screening.</div>
-    </div><div>`;
-    rep.priorities.forEach(p=>{
+
+    // conditions + priority levels on a white card so they pop against the paper
+    body+=`<div style="background:#fff;border:1px solid var(--hairline);border-radius:8px;padding:4px 20px;box-shadow:0 1px 3px rgba(26,23,18,.05)">`;
+    rep.priorities.forEach((p,i)=>{
       const earlyTag = p.early ? `<span class="mono" style="font-size:9.5px;letter-spacing:.4px;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:2px 7px;margin-top:6px;display:inline-block">EARLY ONSET${Number.isInteger(p.minOnset)?" · AGE "+p.minOnset:""}</span>` : "";
-      body+=`<div style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:12px 0;border-top:1px solid #E8E2D5">
+      body+=`<div style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:15px 0;${i>0?"border-top:1px solid #EDE7DA;":""}">
         <div style="flex:1"><div class="display" style="font-size:18px;color:var(--ink)">${esc(p.name)}</div>
         <div style="font-size:12px;color:var(--muted);margin-top:3px">${esc(p.who)}</div>${earlyTag}</div>
         <span style="${lvlStyle(p.lvl)}">${(LVL[p.lvl]||"").toUpperCase()}</span></div>`;
     });
     body+=`</div>`;
 
+    // legend — below the list, kept quiet on the paper so it doesn't compete
+    const legendItem=(lvl,desc)=>`<div style="display:flex;align-items:baseline;gap:8px;margin:4px 0"><span style="${lvlStyle(lvl)}">${(LVL[lvl]||"").toUpperCase()}</span><span style="font-size:11.5px;color:var(--muted)">${desc}</span></div>`;
+    body+=`<div style="margin:16px 2px 2px">
+      <div class="mono" style="font-size:8.5px;letter-spacing:.8px;color:var(--muted2);margin-bottom:7px">HOW PRIORITY IS SET — BY CLOSENESS, NUMBER, AND DIAGNOSIS AGE OF AFFECTED RELATIVES</div>
+      ${legendItem('high','Two or more close relatives, or a parent/sibling diagnosed young')}
+      ${legendItem('mod','One parent or sibling, or two more-distant relatives')}
+      ${legendItem('low','A single more-distant relative (grandparent, aunt, uncle)')}
+      <div style="font-size:11px;color:var(--muted2);margin-top:8px;line-height:1.5">A red <b style="color:var(--accent)">EARLY ONSET</b> badge marks a diagnosis before age 50 — it raises the priority and prompts earlier screening.</div>
+    </div>`;
+
     body+=`<div class="mono" style="font-size:9.5px;letter-spacing:1px;color:var(--muted2);margin:34px 0 4px">YOUR TAILORED PLAN</div>
       <div style="font-size:12.5px;color:var(--muted);margin-bottom:14px">One combined set of recommendations across every area — de-duplicated, with the family condition(s) behind each shown in parentheses.</div>`;
 
+    // tailored plan on its own white card
+    body+=`<div style="background:#fff;border:1px solid var(--hairline);border-radius:8px;padding:6px 20px 16px;box-shadow:0 1px 3px rgba(26,23,18,.05)">`;
     if(rep.loading){
       body+=`<div style="text-align:center;color:var(--muted);padding:38px 20px;font-size:13.5px"><div class="spin"></div>Building your personalized plan from the guidelines…</div>`;
     }else if(rep.error){
-      body+=`<div style="border:1px solid #E7D9BE;background:var(--highlight);border-radius:5px;padding:16px 18px;font-size:13px;color:#7A6A45">Couldn't build the plan just now. <span class="link-mono" data-act="generate" style="color:var(--accent);cursor:pointer;border:none">Try again</span>.<div class="mono" style="font-size:10px;color:var(--muted2);margin-top:8px">${esc(rep.error)}</div></div>`;
+      body+=`<div style="padding:16px 2px;font-size:13px;color:#7A6A45">Couldn't build the plan just now. <span class="link-mono" data-act="generate" style="color:var(--accent);cursor:pointer;border:none">Try again</span>.<div class="mono" style="font-size:10px;color:var(--muted2);margin-top:8px">${esc(rep.error)}</div></div>`;
     }else if(rep.plan){
+      let planFirst=true;
       CATS.forEach(([key,label])=>{
         const items=(rep.plan.categories&&rep.plan.categories[key])||[];
         if(!items.length) return;
-        body+=`<div style="padding:14px 0;border-top:1px solid #E8E2D5"><div class="mono" style="font-size:9.5px;letter-spacing:.8px;color:var(--muted);margin-bottom:9px">${esc(label.toUpperCase())}</div>`;
+        body+=`<div style="padding:15px 0;${planFirst?"":"border-top:1px solid #EDE7DA;"}"><div class="mono" style="font-size:9.5px;letter-spacing:.8px;color:var(--muted);margin-bottom:9px">${esc(label.toUpperCase())}</div>`;
+        planFirst=false;
         items.forEach(it=>{
           const tag = it.conditions&&it.conditions.length
             ? ` <span style="color:var(--muted2)">(${esc(it.conditions.join(", "))})</span>` : "";
@@ -623,8 +632,9 @@ function renderPlan(){
         body+=`</div>`;
       });
       const src=(rep.plan.sources&&rep.plan.sources.length)?rep.plan.sources.join(" · "):"USPSTF and specialty guidelines";
-      body+=`<div class="mono" style="font-size:10px;line-height:1.7;color:var(--muted2);margin-top:24px;padding-top:16px;border-top:1px solid var(--hairline)">SOURCES · ${esc(src)}<br/><br/>Recommendations are generated with AI from your entered family history and paraphrase publicly available guideline recommendations for education. Confirm specifics (screening ages, thresholds, medications) with a licensed clinician.</div>`;
+      body+=`<div class="mono" style="font-size:10px;line-height:1.7;color:var(--muted2);margin-top:18px;padding-top:14px;border-top:1px solid var(--hairline)">SOURCES · ${esc(src)}<br/><br/>Recommendations are generated with AI from your entered family history and paraphrase publicly available guideline recommendations for education. Confirm specifics (screening ages, thresholds, medications) with a licensed clinician.</div>`;
     }
+    body+=`</div>`;
   }
 
   root.innerHTML=body;
